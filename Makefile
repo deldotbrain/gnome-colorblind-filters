@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 # Replace these with the name and domain of your extension!
 NAME     := colorblind-filters
-DOMAIN   := G-dH.github.com
+DOMAIN   := amyp.codeberg.org
 ZIP_NAME := $(NAME)@$(DOMAIN).zip
 
 # Some of the recipes below depend on some of these files.

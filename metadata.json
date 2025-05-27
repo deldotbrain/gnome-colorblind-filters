@@ -9,10 +9,7 @@
     "47",
     "48"
   ],
-  "url": "https://github.com/G-dH/gnome-colorblind-filters",
-  "donations": {
-    "buymeacoffee": "georgdh"
-  },
-  "uuid": "colorblind-filters@G-dH.github.com",
+  "url": "https://codeberg.org/amyp/gnome-colorblind-filters",
+  "uuid": "colorblind-filters@amyp.codeberg.org",
   "version-name": "48.0"
 }

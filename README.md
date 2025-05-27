@@ -9,13 +9,13 @@ Supports GNOME Shell 3.36 - 46
 ## Installation
 #### GNOME 45+
 
-    git clone https://github.com/G-dH/gnome-colorblind-filters.git
+    git clone https://codeberg.org/amyp/gnome-colorblind-filters.git
     cd gnome-colorblind-filters
     make install
 
 #### GNOME 3.36-44
 
-    git clone https://github.com/G-dH/gnome-colorblind-filters.git
+    git clone https://codeberg.org/amyp/gnome-colorblind-filters.git
     cd gnome-colorblind-filters
     git checkout gnome-3.36-44
     make install
@@ -24,4 +24,4 @@ Supports GNOME Shell 3.36 - 46
 Contributions are welcome and I will try my best to answer quickly to all suggestions.
 
 If you like my work and want to keep me motivated, give me some feedback.
-You can also [buy me a coffee](https://buymeacoffee.com/georgdh).
+You can also [buy the original author a coffee](https://buymeacoffee.com/georgdh).
