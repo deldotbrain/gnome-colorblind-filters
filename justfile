@@ -7,5 +7,6 @@ install: zip
 uninstall:
     gnome-extensions uninstall colorblind-filters@G-dH.github.com
 
-test: install
-    dbus-run-session -- gnome-shell --nested --wayland --display=:1
+test display=":1" resolution="1280x720": install
+    MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
+    dbus-run-session -- gnome-shell --nested --wayland --display={{display}}
