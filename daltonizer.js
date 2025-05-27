@@ -62,16 +62,15 @@ export function getCorrection3x3(mode, factor) {
         [1.0, -soln[0] / soln[1], 0.0, 0.0, 0.0, 0.0, 0.0, -soln[2] / soln[1], 1.0],
         [1.0, 0.0, -soln[0] / soln[2], 0.0, 1.0, -soln[1] / soln[2], 0.0, 0.0, 0.0]);
 
-    let correction;
-    if (!is_correction) {
-        correction = Array(9).fill(0.0);
-    } else {
-        correction = pick(
-            [1.0, factor, factor, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            [1.0, 0.0, 0.0, factor, 1.0, factor, 0.0, 0.0, 1.0],
-            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, factor, factor, 1.0]);
-    }
-
-    return M.mult3x3(lms2rgb, M.add3x3(M.mult3x3(sim, rgb2lms),
-        M.mult3x3(correction, M.sub3x3(rgb2lms, M.mult3x3(sim, rgb2lms)))));
+    // If correcting, spread the error across other channels. If simulating,
+    // scale it.
+    const spread = is_correction
+        ? pick(
+            [0.0, factor, factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, factor, 0.0, factor, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, factor, factor, 0.0])
+        : [-factor, 0.0, 0.0, 0.0, -factor, 0.0, 0.0, 0.0, -factor];
+    // lms2rgb * (I + (spread * (I - sim)) * rgb2lms
+    const adjustment = M.mult3x3(spread, M.sub3x3(M.identity3x3(), sim));
+    return M.mult3x3(lms2rgb, M.mult3x3(M.add3x3(M.identity3x3(), adjustment), rgb2lms));
 }

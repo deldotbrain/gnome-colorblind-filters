@@ -18,6 +18,10 @@
 
 'use strict';
 
+export function identity3x3() {
+    return [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+}
+
 export function getRow3(mat, row) {
     return [mat[row], mat[row + 3], mat[row + 6]];
 }
