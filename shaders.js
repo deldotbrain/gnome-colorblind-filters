@@ -12,97 +12,97 @@
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 
-export const   DesaturateEffect = GObject.registerClass(
-class DesaturateEffect extends Clutter.DesaturateEffect {
-    updateEffect(properties) {
-        this.factor = properties.factor;
-        this.queue_repaint();
-    }
-});
+export const DesaturateEffect = GObject.registerClass(
+    class DesaturateEffect extends Clutter.DesaturateEffect {
+        updateEffect(properties) {
+            this.factor = properties.factor;
+            this.queue_repaint();
+        }
+    });
 
-export const   InversionEffect = GObject.registerClass(
-class InversionEffect extends Clutter.ShaderEffect {
-    _init(properties) {
-        super._init();
-        this.updateEffect(properties);
+export const InversionEffect = GObject.registerClass(
+    class InversionEffect extends Clutter.ShaderEffect {
+        _init(properties) {
+            super._init();
+            this.updateEffect(properties);
 
-        this._source = ShaderLib.getInversion();
-        this.set_shader_source(this._source);
-    }
+            this._source = ShaderLib.getInversion();
+            this.set_shader_source(this._source);
+        }
 
-    updateEffect(properties) {
-        this._mode = properties.mode;
-        this.queue_repaint();
-    }
+        updateEffect(properties) {
+            this._mode = properties.mode;
+            this.queue_repaint();
+        }
 
-    vfunc_get_static_shader_source() {
-        return this._source;
-    }
+        vfunc_get_static_shader_source() {
+            return this._source;
+        }
 
-    vfunc_paint_target(...args) {
-        this.set_uniform_value('tex', 0);
-        this.set_uniform_value('INVERSION_MODE', this._mode);
-        super.vfunc_paint_target(...args);
-    }
-});
+        vfunc_paint_target(...args) {
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('INVERSION_MODE', this._mode);
+            super.vfunc_paint_target(...args);
+        }
+    });
 
-export const   ColorMixerEffect = GObject.registerClass(
-class ColorMixerEffect extends Clutter.ShaderEffect {
-    _init(properties) {
-        super._init();
-        // 0 - GRB, 1 - BRG
-        this.updateEffect(properties);
+export const ColorMixerEffect = GObject.registerClass(
+    class ColorMixerEffect extends Clutter.ShaderEffect {
+        _init(properties) {
+            super._init();
+            // 0 - GRB, 1 - BRG
+            this.updateEffect(properties);
 
-        this._source = ShaderLib.getChannelMix();
-        this.set_shader_source(this._source);
-    }
+            this._source = ShaderLib.getChannelMix();
+            this.set_shader_source(this._source);
+        }
 
-    updateEffect(properties) {
-        this._mode = properties.mode;
-        this._strength = properties.factor;
-        this.queue_repaint();
-    }
+        updateEffect(properties) {
+            this._mode = properties.mode;
+            this._strength = properties.factor;
+            this.queue_repaint();
+        }
 
-    vfunc_get_static_shader_source() {
-        return this._source;
-    }
+        vfunc_get_static_shader_source() {
+            return this._source;
+        }
 
-    vfunc_paint_target(...args) {
-        this.set_uniform_value('tex', 0);
-        this.set_uniform_value('MIX_MODE', this._mode);
-        this.set_uniform_value('STRENGTH', this._strength);
-        super.vfunc_paint_target(...args);
-    }
-});
+        vfunc_paint_target(...args) {
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('MIX_MODE', this._mode);
+            this.set_uniform_value('STRENGTH', this._strength);
+            super.vfunc_paint_target(...args);
+        }
+    });
 
-export const   DaltonismEffect = GObject.registerClass(
-class DaltonismEffect extends Clutter.ShaderEffect {
-    _init(properties) {
-        super._init();
+export const DaltonismEffect = GObject.registerClass(
+    class DaltonismEffect extends Clutter.ShaderEffect {
+        _init(properties) {
+            super._init();
 
-        this.updateEffect(properties);
+            this.updateEffect(properties);
 
-        this._source = ShaderLib.getDaltonism();
-        this.set_shader_source(this._source);
-    }
+            this._source = ShaderLib.getDaltonism();
+            this.set_shader_source(this._source);
+        }
 
-    updateEffect(properties) {
-        this._mode = properties.mode;
-        this._strength = properties.factor;
-        this.queue_repaint();
-    }
+        updateEffect(properties) {
+            this._mode = properties.mode;
+            this._strength = properties.factor;
+            this.queue_repaint();
+        }
 
-    vfunc_get_static_shader_source() {
-        return this._source;
-    }
+        vfunc_get_static_shader_source() {
+            return this._source;
+        }
 
-    vfunc_paint_target(...args) {
-        this.set_uniform_value('tex', 0);
-        this.set_uniform_value('COLORBLIND_MODE', this._mode);
-        this.set_uniform_value('STRENGTH', this._strength);
-        super.vfunc_paint_target(...args);
-    }
-});
+        vfunc_paint_target(...args) {
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('COLORBLIND_MODE', this._mode);
+            this.set_uniform_value('STRENGTH', this._strength);
+            super.vfunc_paint_target(...args);
+        }
+    });
 
 export const ShaderLib = class {
     static getDaltonism() {
