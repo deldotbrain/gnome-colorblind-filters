@@ -89,20 +89,10 @@ const MenuButton = GObject.registerClass(
             protanItem._effect = this.Effects.ProtanCorrection;
             this._menuItems.push(protanItem);
 
-            const protanTurboItem = new PopupMenu.PopupMenuItem(_('Protanopia High Contrast'), false);
-            protanTurboItem.connect('activate', this._switchFilter.bind(this, protanTurboItem));
-            protanTurboItem._effect = this.Effects.ProtanCorrectionHighContrast;
-            this._menuItems.push(protanTurboItem);
-
             const deuterItem = new PopupMenu.PopupMenuItem(_('Deuteranopia Correction'), false);
             deuterItem.connect('activate', this._switchFilter.bind(this, deuterItem));
             this._menuItems.push(deuterItem);
             deuterItem._effect = this.Effects.DeuterCorrection;
-
-            const deuterTurboItem = new PopupMenu.PopupMenuItem(_('Deuteranopia High Contrast'), false);
-            deuterTurboItem.connect('activate', this._switchFilter.bind(this, deuterTurboItem));
-            deuterTurboItem._effect = this.Effects.DeuterCorrectionHighContrast;
-            this._menuItems.push(deuterTurboItem);
 
             const tritanItem = new PopupMenu.PopupMenuItem(_('Tritanopia Correction'), false);
             tritanItem.connect('activate', this._switchFilter.bind(this, tritanItem));
@@ -158,9 +148,7 @@ const MenuButton = GObject.registerClass(
             this.menu.addMenuItem(sliderMenuItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             correctionsExpander.menu.addMenuItem(protanItem);
-            correctionsExpander.menu.addMenuItem(protanTurboItem);
             correctionsExpander.menu.addMenuItem(deuterItem);
-            correctionsExpander.menu.addMenuItem(deuterTurboItem);
             correctionsExpander.menu.addMenuItem(tritanItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(correctionsExpander);
@@ -378,32 +366,6 @@ const MenuButton = GObject.registerClass(
                     // this._setShaderEffect();
                     this._switchToggled();
                     return Clutter.EVENT_STOP;
-                } else if (this._switch.state && event.get_button() === Clutter.BUTTON_MIDDLE) {
-                    // middle clicking on panel btn switches between normal correction, high contrast and off state for the active cb type
-                    let item;
-                    const effectName = this._activeData.name;
-
-                    switch (effectName) {
-                        case 'ProtanCorrection':
-                            item = this._getItemByName('ProtanCorrectionHighContrast');
-                            break;
-                        case 'ProtanCorrectionHighContrast':
-                            item = this._getItemByName('ProtanCorrection');
-                            break;
-                        case 'DeuterCorrection':
-                            item = this._getItemByName('DeuterCorrectionHighContrast');
-                            break;
-                        case 'DeuterCorrectionHighContrast':
-                            item = this._getItemByName('DeuterCorrection');
-                            break;
-                    }
-
-                    if (item)
-                        this._switchFilter(item);
-
-
-                    this._setPanelLabel();
-                    return Clutter.EVENT_STOP;
                 }
             } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_SECONDARY)) {
                 this.menu.toggle();
@@ -521,33 +483,11 @@ const MenuButton = GObject.registerClass(
                     sliderEnabled: true,
                 },
 
-                ProtanCorrectionHighContrast: {
-                    name: 'ProtanCorrectionHighContrast',
-                    shortName: 'PH',
-                    properties: {
-                        mode: 1,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
                 DeuterCorrection: {
                     name: 'DeuterCorrection',
                     shortName: 'DC',
                     properties: {
                         mode: 2,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                DeuterCorrectionHighContrast: {
-                    name: 'DeuterCorrectionHighContrast',
-                    shortName: 'DH',
-                    properties: {
-                        mode: 3,
                         factor: 1,
                     },
                     effect: this._getDaltonismEffect,
