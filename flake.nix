@@ -10,6 +10,7 @@
             glib.dev
             gnumake
             zip
+            just
           ];
         };
     };
