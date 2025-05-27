@@ -1,4 +1,4 @@
-SHELL := /bin/bash
+SHELL := /bin/sh
 
 # Replace these with the name and domain of your extension!
 NAME     := colorblind-filters
