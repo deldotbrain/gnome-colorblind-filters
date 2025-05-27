@@ -30,7 +30,8 @@ export const InversionEffect = GObject.registerClass(
         }
 
         updateEffect(properties) {
-            this._mode = properties.mode;
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('INVERSION_MODE', properties.mode);
             this.queue_repaint();
         }
 
@@ -73,12 +74,6 @@ export const InversionEffect = GObject.registerClass(
                 }
             `;
         }
-
-        vfunc_paint_target(...args) {
-            this.set_uniform_value('tex', 0);
-            this.set_uniform_value('INVERSION_MODE', this._mode);
-            super.vfunc_paint_target(...args);
-        }
     });
 
 export const ColorMixerEffect = GObject.registerClass(
@@ -92,8 +87,9 @@ export const ColorMixerEffect = GObject.registerClass(
         }
 
         updateEffect(properties) {
-            this._mode = properties.mode;
-            this._strength = properties.factor;
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('MIX_MODE', properties.mode);
+            this.set_uniform_value('STRENGTH', properties.factor);
             this.queue_repaint();
         }
 
@@ -119,28 +115,21 @@ export const ColorMixerEffect = GObject.registerClass(
             }
         `;
         }
-
-        vfunc_paint_target(...args) {
-            this.set_uniform_value('tex', 0);
-            this.set_uniform_value('MIX_MODE', this._mode);
-            this.set_uniform_value('STRENGTH', this._strength);
-            super.vfunc_paint_target(...args);
-        }
     });
 
 export const DaltonismEffect = GObject.registerClass(
     class DaltonismEffect extends Clutter.ShaderEffect {
         _init(properties) {
             super._init();
-
             this.updateEffect(properties);
 
             this.set_shader_source(DaltonismEffect.getSource());
         }
 
         updateEffect(properties) {
-            this._mode = properties.mode;
-            this._strength = properties.factor;
+            this.set_uniform_value('tex', 0);
+            this.set_uniform_value('COLORBLIND_MODE', properties.mode);
+            this.set_uniform_value('STRENGTH', properties.factor);
             this.queue_repaint();
         }
 
@@ -273,12 +262,5 @@ export const DaltonismEffect = GObject.registerClass(
                     }
                 }
             `;
-        }
-
-        vfunc_paint_target(...args) {
-            this.set_uniform_value('tex', 0);
-            this.set_uniform_value('COLORBLIND_MODE', this._mode);
-            this.set_uniform_value('STRENGTH', this._strength);
-            super.vfunc_paint_target(...args);
         }
     });
