@@ -66,11 +66,10 @@ export function getCorrection3x3(mode, factor) {
     if (!is_correction) {
         correction = Array(9).fill(0.0);
     } else {
-        const error = pick(
+        correction = pick(
             [1.0, factor, factor, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
             [1.0, 0.0, 0.0, factor, 1.0, factor, 0.0, 0.0, 1.0],
             [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, factor, factor, 1.0]);
-        correction = M.mult3x3(error, M.sub3x3(rgb2lms, M.mult3x3(sim, rgb2lms)));
     }
 
     return M.mult3x3(lms2rgb, M.add3x3(M.mult3x3(sim, rgb2lms),
