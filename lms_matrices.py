@@ -41,6 +41,6 @@ print(
                 'lms2rgb': list(aosp_rgb2lms.I.T.flat),
             },
         },
-        indent=2,
+        indent=4,
     )
 )
