@@ -44,7 +44,7 @@ function getOtherEffects() {
             sliderEnabled: true,
         },
         {
-            description: 'LightnessInversion',
+            description: 'Lightness Inversion',
             name: 'LightnessInversion',
             shortName: 'LI',
             properties: {
