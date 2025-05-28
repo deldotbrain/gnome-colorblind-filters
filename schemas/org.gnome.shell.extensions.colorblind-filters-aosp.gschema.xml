@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="vertical-workspaces">
-    <schema id="org.gnome.shell.extensions.colorblind-filters" path="/org/gnome/shell/extensions/colorblind-filters/">
+    <schema id="org.gnome.shell.extensions.colorblind-filters-aosp" path="/org/gnome/shell/extensions/colorblind-filters-aosp/">
         <key type="b" name="filter-active">
             <default>false</default>
         </key>

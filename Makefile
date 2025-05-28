@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 
 # Replace these with the name and domain of your extension!
-NAME     := colorblind-filters
+NAME     := colorblind-filters-aosp
 DOMAIN   := amyp.codeberg.org
 ZIP_NAME := $(NAME)@$(DOMAIN).zip
 

@@ -1,8 +1,8 @@
 {
-  "description": "Provides color filters to help color-blind users distinguish colors and developers understand how they perceive uncorrected colors.\n\nThe menu offers correction filters as well as simulation filters that demonstrate how color-blind individuals perceive colors. Included are filters for Protanopia, Deuteranopia, and Tritanopia, with adjustable strength. Additionally, filters for desaturation, channel mix, and lightness and color inversions are available.\n\nPrimary mouse button click on the panel button toggles active filter, secondary click opens configuration menu, middle click toggles high-contrast correction if available and scroll switches filters.",
+  "description": "Provides color filters to help color-blind users distinguish colors and developers understand how they perceive uncorrected colors.\n\nThe menu offers correction filters as well as simulation filters that demonstrate how color-blind individuals perceive colors. Included are filters for Protanopia, Deuteranopia, and Tritanopia, with adjustable strength and using the same algorithm as on Android phones. Additionally, filters for desaturation, channel mix, and lightness and color inversions are available.\n\nPrimary mouse button click on the panel button toggles active filter, secondary click opens configuration menu, middle click toggles high-contrast correction if available and scroll switches filters.",
   "gettext-domain": "colorblind-filters",
-  "name": "Colorblind Filters",
-  "settings-schema": "org.gnome.shell.extensions.colorblind-filters",
+  "name": "Colorblind Filters AOSP",
+  "settings-schema": "org.gnome.shell.extensions.colorblind-filters-aosp",
   "shell-version": [
     "45",
     "46",
@@ -10,6 +10,6 @@
     "48"
   ],
   "url": "https://codeberg.org/amyp/gnome-colorblind-filters",
-  "uuid": "colorblind-filters@amyp.codeberg.org",
+  "uuid": "colorblind-filters-aosp@amyp.codeberg.org",
   "version-name": "48.0"
 }

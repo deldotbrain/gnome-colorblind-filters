@@ -1,4 +1,4 @@
-package := 'colorblind-filters@amyp.codeberg.org'
+package := 'colorblind-filters-aosp@amyp.codeberg.org'
 
 zip:
     make zip
