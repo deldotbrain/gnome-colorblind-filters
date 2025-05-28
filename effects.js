@@ -87,20 +87,31 @@ function getColorblindEffects(mode) {
             whichCone: 2,
         },
     ];
+    const transforms = [
+        {
+            name: 'HPE',
+            short: 'H',
+        },
+        {
+            name: 'AOSP',
+            short: 'A',
+        },
+    ];
 
-    return types.map((t) => ({
-        description: `${t.longName} ${mode.name}`,
-        name: `${t.name}${mode.name}`,
-        shortName: `${t.short}${mode.short}`,
+    return transforms.flatMap((x) => types.map((t) => ({
+        description: `${t.longName} ${mode.name} (${x.name})`,
+        name: `${t.name}${mode.name}${x.name}`,
+        shortName: `${t.short}${mode.short}${x.short}`,
         properties: {
             whichCone: t.whichCone,
+            transform: x.name,
             isCorrection: mode.name === 'Correction',
             factor: 1,
         },
         effect: Shaders.DaltonismEffect,
         // FIXME: either check sliderEnabled or presence of properties.factor, not both
         sliderEnabled: true,
-    }));
+    })));
 }
 
 let allEffects = null

@@ -22,35 +22,63 @@
 
 import * as M from './matrix.js';
 
-// AOSP calls this xyz2lms*rgb2xyz.
-const rgb2lms = [
-    0.39040536,
-    0.07084159,
-    0.02310818,
-    0.54994112,
-    0.96317176,
-    0.12802080,
-    0.00892632,
-    0.00135775,
-    0.93624512
-];
-// AOSP calls this inverse(rgb2lms).
-const lms2rgb = [
-    2.85846766750094,
-    -0.21018226726543507,
-    -0.0418120025914336,
-    -1.6287877255287762,
-    1.1582008557727166,
-    -0.11816935309996411,
-    -0.024891035560677063,
-    0.0003242814915942015,
-    1.0686663677928099
-];
+// See lms_matrices.py for where the magic numbers come from.
+const transforms = {
+  "HPE": {
+    "rgb2lms": [
+      0.3139188,
+      0.15529867,
+      0.017721260000000003,
+      0.63955568,
+      0.7579451199999999,
+      0.10944944000000001,
+      0.046524420000000004,
+      0.08672536,
+      0.8727491
+    ],
+    "lms2rgb": [
+      5.472504494072676,
+      -1.1247095815502104,
+      0.029927454376835815,
+      -4.64219698980189,
+      2.2926289889214537,
+      -0.19325299692399875,
+      0.16956890313305473,
+      -0.16786337959051792,
+      1.1634129193285379
+    ]
+  },
+  "AOSP": {
+    "rgb2lms": [
+      0.39040536,
+      0.07084159000000004,
+      0.023108180000000002,
+      0.5499411200000001,
+      0.9631717599999999,
+      0.12802080000000002,
+      0.008926320000000027,
+      0.0013577500000000052,
+      0.93624512
+    ],
+    "lms2rgb": [
+      2.85846766750094,
+      -0.21018226726543507,
+      -0.0418120025914336,
+      -1.6287877255287762,
+      1.1582008557727166,
+      -0.11816935309996411,
+      -0.024891035560677063,
+      0.0003242814915942015,
+      1.0686663677928099
+    ]
+  }
+};
 
 // The actual AOSP algorithm. Returns a 3x3 matrix to transform rgb values.
 export function getCorrection3x3(properties) {
-    const { whichCone, isCorrection, factor } = properties;
+    const { whichCone, transform, isCorrection, factor } = properties;
     const pick = (p, d, t) => [p, d, t][whichCone];
+    const { rgb2lms, lms2rgb } = transforms[transform];
 
     const lms_w = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
     const soln = M.cross3(lms_w, M.getCol3(rgb2lms, pick(2, 2, 0)));
