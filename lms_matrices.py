@@ -8,8 +8,9 @@ rgb2xyz = np.matrix(
     '0.4124, 0.3576, 0.1805; 0.2126, 0.7152, 0.0722; 0.0193, 0.1192, 0.9505'
 )
 
-# XYZ to LMS transformation from AOSP. I don't know where they got this matrix,
-# but it doesn't agree with my vision personally.
+# AOSP's transformation. This is why Android's color filters don't look right.
+# This is the CIECAM02 XYZ-to-RGB conversion matrix. It doesn't convert to LMS
+# at all. This is a bug in Android.
 #
 # https://github.com/LineageOS/android_frameworks_native/blob/lineage-22.2/services/surfaceflinger/Effects/Daltonizer.cpp
 # NB: AOSP's mat4's constructor accepts a column-major array!
