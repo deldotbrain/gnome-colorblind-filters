@@ -317,7 +317,7 @@ const MenuButton = GObject.registerClass(
             const effectName = settings.get_string('filter-name');
             const item = this._getItemByName(effectName);
             this._activeItem = item ? item : this._getItemByName('DeuterCorrection');
-            this._activeData = item._effect;
+            this._activeData = this._activeItem._effect;
             this._filterStrength = settings.get_int('filter-strength') / 100;
             // for some reason 0 and 1 don't update the shader
             // Math.Clamp is not supported in older versions og gjs
