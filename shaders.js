@@ -129,7 +129,7 @@ export const DaltonismEffect = GObject.registerClass(
 
         updateEffect(properties) {
             this.set_uniform_value('tex', 0);
-            const correction = Daltonizer.getCorrection3x3(properties.mode, properties.factor);
+            const correction = Daltonizer.getCorrection3x3(properties);
             // None of Clutter's aggregate data types can be used from GJS, so:
             for (let i = 0; i < 9; i++) {
                 this.set_uniform_value(`CORRECTION${i}`, correction[i]);

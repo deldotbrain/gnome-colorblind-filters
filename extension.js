@@ -21,7 +21,7 @@ import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import * as Shaders from './shaders.js';
+import * as Effects from './effects.js';
 
 const PANEL_ICON_SIZE = 18; // default +2 looks better
 let _;
@@ -46,7 +46,6 @@ const MenuButton = GObject.registerClass(
             super._init(0.5, 'ColorblindMenu', false);
             this._settings = me.getSettings();
             this._filterName = 'colorblind';
-            this._getEffects();
 
             this._actionTime = 0;
             this._activeItem = null;
@@ -81,88 +80,35 @@ const MenuButton = GObject.registerClass(
             this._strengthMenuItem = sliderMenuItem;
             this._strengthSlider = strengthSlider;
 
+            const effects = Effects.getEffectGroups();
+            const addEffectsToMenu = (effects, menu) => {
+                for (const e of effects) {
+                    const item = new PopupMenu.PopupMenuItem(_(e.description));
+                    item.connect('activate', this._switchFilter.bind(this, item));
+                    item._effect = e;
+                    this._menuItems.push(item);
+                    menu.addMenuItem(item);
+                }
+            };
+
             const correctionsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Corrections'));
             this._correctionsExpander = correctionsExpander;
-
-            const protanItem = new PopupMenu.PopupMenuItem(_('Protanopia Correction'), false);
-            protanItem.connect('activate', this._switchFilter.bind(this, protanItem));
-            protanItem._effect = this.Effects.ProtanCorrection;
-            this._menuItems.push(protanItem);
-
-            const deuterItem = new PopupMenu.PopupMenuItem(_('Deuteranopia Correction'), false);
-            deuterItem.connect('activate', this._switchFilter.bind(this, deuterItem));
-            this._menuItems.push(deuterItem);
-            deuterItem._effect = this.Effects.DeuterCorrection;
-
-            const tritanItem = new PopupMenu.PopupMenuItem(_('Tritanopia Correction'), false);
-            tritanItem.connect('activate', this._switchFilter.bind(this, tritanItem));
-            tritanItem._effect = this.Effects.TritanCorrection;
-            this._menuItems.push(tritanItem);
-
+            addEffectsToMenu(effects.corrections, correctionsExpander.menu);
 
             const simulationsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Simulations'));
-
-            const protanSimulItem = new PopupMenu.PopupMenuItem(_('Protanopia Simulation'), false);
-            protanSimulItem.connect('activate', this._switchFilter.bind(this, protanSimulItem));
-            protanSimulItem._effect = this.Effects.ProtanSimulation;
-            this._menuItems.push(protanSimulItem);
-
-            const deuterSimulItem = new PopupMenu.PopupMenuItem(_('Deuteranopia Simulation'), false);
-            deuterSimulItem.connect('activate', this._switchFilter.bind(this, deuterSimulItem));
-            deuterSimulItem._effect = this.Effects.DeuterSimulation;
-            this._menuItems.push(deuterSimulItem);
-
-            const tritanSimulItem = new PopupMenu.PopupMenuItem(_('Tritanopia Simulation'), false);
-            tritanSimulItem.connect('activate', this._switchFilter.bind(this, tritanSimulItem));
-            tritanSimulItem._effect = this.Effects.TritanSimulation;
-            this._menuItems.push(tritanSimulItem);
+            addEffectsToMenu(effects.simulations, simulationsExpander.menu);
 
             const otherExpander = new PopupMenu.PopupSubMenuMenuItem(_('Other Effects'));
-
-            const desaturateItem = new PopupMenu.PopupMenuItem(_('Desaturation'), false);
-            desaturateItem.connect('activate', this._switchFilter.bind(this, desaturateItem));
-            desaturateItem._effect = this.Effects.Desaturation;
-            this._menuItems.push(desaturateItem);
-
-            const gbrItem = new PopupMenu.PopupMenuItem(_('Channel Mixer - GBR'), false);
-            gbrItem.connect('activate', this._switchFilter.bind(this, gbrItem));
-            gbrItem._effect = this.Effects.ColorMixerGBR;
-            this._menuItems.push(gbrItem);
-
-            const brgItem = new PopupMenu.PopupMenuItem(_('Channel Mixer - BRG'), false);
-            brgItem.connect('activate', this._switchFilter.bind(this, brgItem));
-            brgItem._effect = this.Effects.ColorMixerBRG;
-            this._menuItems.push(brgItem);
-
-            const lightnessInversionItem = new PopupMenu.PopupMenuItem(_('Lightness Inversion'), false);
-            lightnessInversionItem.connect('activate', this._switchFilter.bind(this, lightnessInversionItem));
-            lightnessInversionItem._effect = this.Effects.LigtnessInversion;
-            this._menuItems.push(lightnessInversionItem);
-
-            const colorInversionItem = new PopupMenu.PopupMenuItem(_('Color Inversion'), false);
-            colorInversionItem.connect('activate', this._switchFilter.bind(this, colorInversionItem));
-            this._menuItems.push(colorInversionItem);
-            colorInversionItem._effect = this.Effects.ColorInversion;
+            addEffectsToMenu(effects.others, otherExpander.menu);
 
             this.menu.addMenuItem(switchOff);
             this.menu.addMenuItem(sliderMenuItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            correctionsExpander.menu.addMenuItem(protanItem);
-            correctionsExpander.menu.addMenuItem(deuterItem);
-            correctionsExpander.menu.addMenuItem(tritanItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(correctionsExpander);
             this.menu.addMenuItem(simulationsExpander);
-            simulationsExpander.menu.addMenuItem(protanSimulItem);
-            simulationsExpander.menu.addMenuItem(deuterSimulItem);
-            simulationsExpander.menu.addMenuItem(tritanSimulItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(otherExpander);
-            otherExpander.menu.addMenuItem(desaturateItem);
-            otherExpander.menu.addMenuItem(gbrItem);
-            otherExpander.menu.addMenuItem(brgItem);
-            otherExpander.menu.addMenuItem(lightnessInversionItem);
-            otherExpander.menu.addMenuItem(colorInversionItem);
 
             this._loadSettings();
             this._setShaderEffect();
@@ -171,7 +117,6 @@ const MenuButton = GObject.registerClass(
             this.connect('destroy', () => {
                 this._removeEffect();
                 this._activeEffect = null;
-                this._clearEffects();
 
                 if (this._labelTimeoutId)
                     GLib.source_remove(this._labelTimeoutId);
@@ -273,7 +218,7 @@ const MenuButton = GObject.registerClass(
             const properties = this._getProperties();
 
             const effectData = this._activeData;
-            const effect = effectData.effect(properties);
+            const effect = new effectData.effect(properties);
             this._addEffect(effect);
         }
 
@@ -284,6 +229,7 @@ const MenuButton = GObject.registerClass(
 
         _removeEffect() {
             Main.uiGroup.remove_effect_by_name(this._filterName);
+            this._activeEffect = null;
         }
 
         _saveSettings() {
@@ -421,174 +367,5 @@ const MenuButton = GObject.registerClass(
                     return GLib.SOURCE_REMOVE;
                 }
             );
-        }
-
-        _getDaltonismEffect(properties) {
-            if (!this._daltonismEffect)
-                this._daltonismEffect = new Shaders.DaltonismEffect(properties);
-            else
-                this._daltonismEffect.updateEffect(properties);
-
-
-            return this._daltonismEffect;
-        }
-
-        _getChannelMixerEffect(properties) {
-            if (!this._channelMixerEffect)
-                this._channelMixerEffect = new Shaders.ColorMixerEffect(properties);
-            else
-                this._channelMixerEffect.updateEffect(properties);
-
-
-            return this._channelMixerEffect;
-        }
-
-        _getDesaturateEffect(properties) {
-            if (!this._desaturateEffect)
-                this._desaturateEffect = new Shaders.DesaturateEffect(properties);
-            else
-                this._desaturateEffect.updateEffect(properties);
-
-
-            return this._desaturateEffect;
-        }
-
-        _getInversionEffect(properties) {
-            if (!this._inversionEffect)
-                this._inversionEffect = new Shaders.InversionEffect(properties);
-            else
-                this._inversionEffect.updateEffect(properties);
-
-
-            return this._inversionEffect;
-        }
-
-        _clearEffects() {
-            this._daltonismEffect = null;
-            this._channelMixerEffect = null;
-            this._desaturateEffect = null;
-            this._inversionEffect = null;
-        }
-
-        _getEffects() {
-            this.Effects = {
-                ProtanCorrection: {
-                    name: 'ProtanCorrection',
-                    shortName: 'PC',
-                    properties: {
-                        mode: 0,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                DeuterCorrection: {
-                    name: 'DeuterCorrection',
-                    shortName: 'DC',
-                    properties: {
-                        mode: 2,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                TritanCorrection: {
-                    name: 'TritanCorrection',
-                    shortName: 'TC',
-                    properties: {
-                        mode: 4,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                ProtanSimulation: {
-                    name: 'ProtanSimulation',
-                    shortName: 'PS',
-                    properties: {
-                        mode: 5,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                DeuterSimulation: {
-                    name: 'DeuterSimulation',
-                    shortName: 'DS',
-                    properties: {
-                        mode: 6,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                TritanSimulation: {
-                    name: 'TritanSimulation',
-                    shortName: 'TS',
-                    properties: {
-                        mode: 7,
-                        factor: 1,
-                    },
-                    effect: this._getDaltonismEffect,
-                    sliderEnabled: true,
-                },
-
-                ColorMixerGBR: {
-                    name: 'ColorMixerGBR',
-                    shortName: 'GBR',
-                    properties: {
-                        mode: 0,
-                        factor: 1,
-                    },
-                    effect: this._getChannelMixerEffect,
-                    sliderEnabled: true,
-                },
-
-                ColorMixerBRG: {
-                    name: 'ColorMixerBRG',
-                    shortName: 'BRG',
-                    properties: {
-                        mode: 1,
-                        factor: 1,
-                    },
-                    effect: this._getChannelMixerEffect,
-                    sliderEnabled: true,
-                },
-
-                Desaturation: {
-                    name: 'Desaturation',
-                    shortName: 'D',
-                    properties: {
-                        factor: 1,
-                    },
-                    effect: this._getDesaturateEffect,
-                    sliderEnabled: true,
-                },
-
-                LigtnessInversion: {
-                    name: 'LightnessInversion',
-                    shortName: 'LI',
-                    properties: {
-                        mode: 0,
-                    },
-                    effect: this._getInversionEffect,
-                    sliderEnabled: false,
-                },
-
-                ColorInversion: {
-                    name: 'ColorInversion',
-                    shortName: 'CI',
-                    properties: {
-                        mode: 2,
-                    },
-                    effect: this._getInversionEffect,
-                    sliderEnabled: false,
-                },
-            };
         }
     });

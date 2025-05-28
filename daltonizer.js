@@ -48,12 +48,9 @@ const lms2rgb = [
 ];
 
 // The actual AOSP algorithm. Returns a 3x3 matrix to transform rgb values.
-export function getCorrection3x3(mode, factor) {
-    const is_correction = mode < 5;
-    const is_prot = mode == 0 || mode == 1 || mode == 5;
-    const is_deut = mode == 2 || mode == 3 || mode == 6;
-    //const is_trit = mode == 4 || mode == 7;
-    const pick = (p, d, t) => is_prot ? p : (is_deut ? d : t);
+export function getCorrection3x3(properties) {
+    const { whichCone, isCorrection, factor } = properties;
+    const pick = (p, d, t) => [p, d, t][whichCone];
 
     const lms_w = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
     const soln = M.cross3(lms_w, M.getCol3(rgb2lms, pick(2, 2, 0)));
@@ -64,7 +61,7 @@ export function getCorrection3x3(mode, factor) {
 
     // If correcting, spread the error across other channels. If simulating,
     // scale it.
-    const spread = is_correction
+    const spread = isCorrection
         ? pick(
             [0.0, factor, factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 0.0, factor, 0.0, factor, 0.0, 0.0, 0.0],
