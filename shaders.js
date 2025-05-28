@@ -99,22 +99,22 @@ export const ColorMixerEffect = GObject.registerClass(
         }
 
         static getSource() {
-        return `
-            uniform sampler2D tex;
-            uniform int MIX_MODE;
-            uniform float STRENGTH;
-            void main() {
-                vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                vec4 m;
-                if (MIX_MODE == 0) {
-                    m = vec4(c.b, c.r, c.g, c.a);
-                } else if (MIX_MODE == 1) {
-                    m = vec4(c.g, c.b, c.r, c.a);
+            return `
+                uniform sampler2D tex;
+                uniform int MIX_MODE;
+                uniform float STRENGTH;
+                void main() {
+                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
+                    vec4 m;
+                    if (MIX_MODE == 0) {
+                        m = vec4(c.b, c.r, c.g, c.a);
+                    } else if (MIX_MODE == 1) {
+                        m = vec4(c.g, c.b, c.r, c.a);
+                    }
+                    c = m * STRENGTH + c * (1.0 - STRENGTH);
+                    cogl_color_out = c;
                 }
-                c = m * STRENGTH + c * (1.0 - STRENGTH);
-                cogl_color_out = c;
-            }
-        `;
+            `;
         }
     });
 
