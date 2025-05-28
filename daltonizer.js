@@ -58,7 +58,7 @@ export function getCorrection3x3(mode, factor) {
     const lms_w = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
     const soln = M.cross3(lms_w, M.getCol3(rgb2lms, pick(2, 2, 0)));
     const sim = pick(
-        [0.0, 0.0, 0.0, -soln[1] / soln[0], 1.0, 0.0, -soln[2] / soln[1], 0.0, 1.0],
+        [0.0, 0.0, 0.0, -soln[1] / soln[0], 1.0, 0.0, -soln[2] / soln[0], 0.0, 1.0],
         [1.0, -soln[0] / soln[1], 0.0, 0.0, 0.0, 0.0, 0.0, -soln[2] / soln[1], 1.0],
         [1.0, 0.0, -soln[0] / soln[2], 0.0, 1.0, -soln[1] / soln[2], 0.0, 0.0, 0.0]);
 
