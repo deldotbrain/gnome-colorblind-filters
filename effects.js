@@ -135,7 +135,7 @@ export function getEffectGroups() {
 }
 
 export function getEffectByName(name) {
-    for (const [_, effects] of getEffectGroups()) {
+    for (const [_, effects] of Object.entries(getEffectGroups())) {
         for (const e of effects) {
             if (e.name == name) {
                 return e;
