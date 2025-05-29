@@ -80,22 +80,27 @@ export function getCorrection3x3(properties) {
     const pick = (p, d, t) => [p, d, t][whichCone];
     const { rgb2lms, lms2rgb } = transforms[transform];
 
+    // Calculate a projection onto a plane containing three points from RGB:
+    // black, white, and blue/red. Blue is assumed to be unchanged by protanopia
+    // and deuteranopia, while red is assumed to be unchanged by tritanopia.
     const lms_w = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
     const soln = M.cross3(lms_w, M.getCol3(rgb2lms, pick(2, 2, 0)));
-    const sim = pick(
+    const simulation = pick(
         [0.0, 0.0, 0.0, -soln[1] / soln[0], 1.0, 0.0, -soln[2] / soln[0], 0.0, 1.0],
         [1.0, -soln[0] / soln[1], 0.0, 0.0, 0.0, 0.0, 0.0, -soln[2] / soln[1], 1.0],
         [1.0, 0.0, -soln[0] / soln[2], 0.0, 1.0, -soln[1] / soln[2], 0.0, 0.0, 0.0]);
 
-    // If correcting, spread the error across other channels. If simulating,
-    // scale it.
+    // Error: difference between simulated vision and ideal vision
+    const error = M.sub3x3(simulation, M.identity3x3());
+    // If correcting, negate the error and spread it across the other cones.
+    // If simulating, scale it and leave it on the same cone.
     const spread = isCorrection
         ? pick(
-            [0.0, factor, factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, factor, 0.0, factor, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, factor, factor, 0.0])
-        : [-factor, 0.0, 0.0, 0.0, -factor, 0.0, 0.0, 0.0, -factor];
-    // lms2rgb * (I + (spread * (I - sim)) * rgb2lms
-    const adjustment = M.mult3x3(spread, M.sub3x3(M.identity3x3(), sim));
-    return M.mult3x3(lms2rgb, M.mult3x3(M.add3x3(M.identity3x3(), adjustment), rgb2lms));
+            [0.0, -factor, -factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, -factor, 0.0, -factor, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -factor, -factor, 0.0])
+        : [factor, 0.0, 0.0, 0.0, factor, 0.0, 0.0, 0.0, factor];
+    const adjustment = M.add3x3(M.identity3x3(), M.mult3x3(spread, error));
+    // Taken together: lms2rgb * (I - (spread * (sim - I)) * rgb2lms
+    return M.mult3x3(lms2rgb, M.mult3x3(adjustment, rgb2lms));
 }
