@@ -20,7 +20,6 @@ function getOtherEffects() {
                 factor: 1,
             },
             shader: Shaders.ColorMixerEffect,
-            sliderEnabled: true,
         },
         {
             description: 'Channel Mixer - BRG',
@@ -31,7 +30,6 @@ function getOtherEffects() {
                 factor: 1,
             },
             shader: Shaders.ColorMixerEffect,
-            sliderEnabled: true,
         },
         {
             description: 'Desaturation',
@@ -41,7 +39,6 @@ function getOtherEffects() {
                 factor: 1,
             },
             shader: Shaders.DesaturateEffect,
-            sliderEnabled: true,
         },
         {
             description: 'Lightness Inversion',
@@ -51,7 +48,6 @@ function getOtherEffects() {
                 mode: 0,
             },
             shader: Shaders.InversionEffect,
-            sliderEnabled: false,
         },
         {
             description: 'Color Inversion',
@@ -61,7 +57,6 @@ function getOtherEffects() {
                 mode: 2,
             },
             shader: Shaders.InversionEffect,
-            sliderEnabled: false,
         },
     ];
 }
@@ -109,8 +104,6 @@ function getColorblindEffects(mode) {
             factor: 1,
         },
         shader: Shaders.DaltonismEffect,
-        // FIXME: either check sliderEnabled or presence of properties.factor, not both
-        sliderEnabled: true,
     })));
 }
 
