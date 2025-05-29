@@ -19,7 +19,7 @@ function getOtherEffects() {
                 mode: 0,
                 factor: 1,
             },
-            effect: Shaders.ColorMixerEffect,
+            shader: Shaders.ColorMixerEffect,
             sliderEnabled: true,
         },
         {
@@ -30,7 +30,7 @@ function getOtherEffects() {
                 mode: 1,
                 factor: 1,
             },
-            effect: Shaders.ColorMixerEffect,
+            shader: Shaders.ColorMixerEffect,
             sliderEnabled: true,
         },
         {
@@ -40,7 +40,7 @@ function getOtherEffects() {
             properties: {
                 factor: 1,
             },
-            effect: Shaders.DesaturateEffect,
+            shader: Shaders.DesaturateEffect,
             sliderEnabled: true,
         },
         {
@@ -50,7 +50,7 @@ function getOtherEffects() {
             properties: {
                 mode: 0,
             },
-            effect: Shaders.InversionEffect,
+            shader: Shaders.InversionEffect,
             sliderEnabled: false,
         },
         {
@@ -60,7 +60,7 @@ function getOtherEffects() {
             properties: {
                 mode: 2,
             },
-            effect: Shaders.InversionEffect,
+            shader: Shaders.InversionEffect,
             sliderEnabled: false,
         },
     ];
@@ -108,13 +108,13 @@ function getColorblindEffects(mode) {
             isCorrection: mode.name === 'Correction',
             factor: 1,
         },
-        effect: Shaders.DaltonismEffect,
+        shader: Shaders.DaltonismEffect,
         // FIXME: either check sliderEnabled or presence of properties.factor, not both
         sliderEnabled: true,
     })));
 }
 
-let allEffects = null
+let allEffects = null;
 
 export function getEffectGroups() {
     if (allEffects === null) {
@@ -141,5 +141,21 @@ export function getEffectByName(name) {
                 return e;
             }
         }
+    }
+}
+
+let shader_cache = new Map();
+
+export function makeShader(effect) {
+    const shaderClass = effect.shader;
+
+    if (shader_cache.has(shaderClass)) {
+        const shader = shader_cache[shaderClass];
+        shader._updateEffect(effect.properties);
+        return shader;
+    } else {
+        const shader = new shaderClass(effect.properties);
+        shader_cache[shaderClass] = shader;
+        return shader;
     }
 }

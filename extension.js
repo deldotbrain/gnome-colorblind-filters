@@ -152,8 +152,8 @@ const MenuButton = GObject.registerClass(
         }
 
         _applyEffect(newItem, save = true) {
-            const oldShader = this._shader ? this._selectedItem._effect.effect : null;
-            const newShader = this._switch.state ? newItem._effect.effect : null;
+            const oldShader = this._shader ? this._selectedItem._effect.shader : null;
+            const newShader = this._switch.state ? newItem._effect.shader : null;
             this._selectedItem = newItem;
             const newEffect = newItem._effect;
 
@@ -166,7 +166,7 @@ const MenuButton = GObject.registerClass(
                     newEffect.properties.factor = this._strengthSlider.value;
                 }
                 if (oldShader != newShader) {
-                    this._shader = new newShader(newEffect.properties);
+                    this._shader = Effects.makeShader(newEffect);
                     Main.uiGroup.add_effect_with_name(EFFECT_NAME, this._shader);
                 } else {
                     this._shader.updateEffect(newEffect.properties);
