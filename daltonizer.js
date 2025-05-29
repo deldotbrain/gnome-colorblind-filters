@@ -76,15 +76,27 @@ const transforms = {
 
 // The actual AOSP algorithm. Returns a 3x3 matrix to transform rgb values.
 export function getCorrection3x3(properties) {
-    const { whichCone, transform, isCorrection, factor } = properties;
+    const { whichCone, transform, isCorrection, factor, tritanHack } = properties;
     const pick = (p, d, t) => [p, d, t][whichCone];
     const { rgb2lms, lms2rgb } = transforms[transform];
 
-    // Calculate a projection onto a plane containing three points from RGB:
-    // black, white, and blue/red. Blue is assumed to be unchanged by protanopia
-    // and deuteranopia, while red is assumed to be unchanged by tritanopia.
-    const lms_w = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
-    const soln = M.cross3(lms_w, M.getCol3(rgb2lms, pick(2, 2, 0)));
+    // Calculate an error projection in LMS space.
+    //
+    // For protanopia and deuteranopia, assume that the blue sRGB primary is
+    // unaffected. That gives us 3 points in RGB space that mustn't be affected
+    // by the projection in LMS space. Project along the normal of the plane
+    // that includes all three points. For tritanopia, make the same assumption
+    // about the red primary and proceed similarly.
+    //
+    // Optionally, for tritanopia, assume that *two* primaries are unaffected:
+    // red and green. Project along the normal of the plane parallel to the
+    // lines between black and white, and between red and green. To my (somewhat
+    // tritanomalous) eyes, this does a better job correcting color.
+    const lms_bw = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
+    const lms_ab = M.multiplyMatrixVec(rgb2lms,
+        !tritanHack ? pick([0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]) : [1.0, -1.0, 0.0]);
+    const soln = M.cross3(lms_bw, lms_ab);
+
     const simulation = pick(
         [0.0, 0.0, 0.0, -soln[1] / soln[0], 1.0, 0.0, -soln[2] / soln[0], 0.0, 1.0],
         [1.0, -soln[0] / soln[1], 0.0, 0.0, 0.0, 0.0, 0.0, -soln[2] / soln[1], 1.0],

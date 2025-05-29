@@ -81,6 +81,13 @@ function getColorblindEffects(mode) {
             short: 'T',
             whichCone: 2,
         },
+        {
+            longName: 'Modified Tritanopia',
+            name: 'ModTritan',
+            short: 'MT',
+            whichCone: 2,
+            tritanHack: true,
+        }
     ];
     const transforms = [
         {
@@ -98,6 +105,7 @@ function getColorblindEffects(mode) {
         name: `${t.name}${mode.name}${x.name}`,
         shortName: `${t.short}${mode.short}${x.short}`,
         properties: {
+            tritanHack: t.tritanHack || false,
             whichCone: t.whichCone,
             transform: x.name,
             isCorrection: mode.name === 'Correction',
