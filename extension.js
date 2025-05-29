@@ -83,8 +83,12 @@ const MenuButton = GObject.registerClass(
             };
 
             const correctionsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Corrections'));
-            this._correctionsExpander = correctionsExpander;
             addEffectsToMenu(effects.corrections, correctionsExpander.menu);
+            this.menu.connect('open-state-changed', (_menu, opened) => {
+                if (opened) {
+                    correctionsExpander.setSubmenuShown(true);
+                }
+            });
 
             const simulationsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Simulations'));
             addEffectsToMenu(effects.simulations, simulationsExpander.menu);
@@ -241,7 +245,6 @@ const MenuButton = GObject.registerClass(
                 }
             } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_SECONDARY)) {
                 this.menu.toggle();
-                this._correctionsExpander.setSubmenuShown(true);
                 return Clutter.EVENT_STOP;
             }
 
