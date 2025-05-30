@@ -7,8 +7,8 @@
         <key type="s" name="filter-name">
             <default>'DeuterCorrectionHPE'</default>
         </key>
-        <key type="i" name="filter-strength">
-            <default>100</default>
+        <key type="d" name="filter-strength">
+            <default>1.0</default>
         </key>
     </schema>
 </schemalist>

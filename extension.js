@@ -45,7 +45,8 @@ const MenuButton = GObject.registerClass(
     class MenuButton extends PanelMenu.Button {
         _init(me) {
             super._init(0.5, 'ColorblindMenu', false);
-            this._settings = me.getSettings();
+            const settings = me.getSettings();
+            this._settings = settings;
 
             const bin = new St.BoxLayout();
             const panelLabel = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
@@ -57,8 +58,7 @@ const MenuButton = GObject.registerClass(
             this._panelBin = bin;
 
             const switchOff = new PopupMenu.PopupSwitchMenuItem('', false);
-            switchOff.connect('toggled', () => this._setEnabled(switchOff.value));
-            this._switch = switchOff._switch;
+            this._switch = switchOff;
             this._activeLabel = switchOff.label;
 
             const strengthSlider = new Slider.Slider(0);
@@ -75,7 +75,7 @@ const MenuButton = GObject.registerClass(
                 for (const e of effects) {
                     const item = new PopupMenu.PopupMenuItem(_(e.description));
                     item.setOrnament(PopupMenu.Ornament.NONE);
-                    item.connect('activate', () => this._setSelected(item));
+                    item.connect('activate', () => settings.set_string('filter-name', e.name));
                     item._effect = e;
                     this._menuItems.push(item);
                     menu.addMenuItem(item);
@@ -105,9 +105,18 @@ const MenuButton = GObject.registerClass(
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(otherExpander);
 
-            strengthSlider.connect('notify::value', () => this._setStrength(strengthSlider.value));
+            const setEffect = (effectName) => {
+                const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
+                this._setSelected(selectedItem, false);
+            };
+            settings.connect('changed::filter-name', (s, k) => setEffect(s.get_string(k)));
+            setEffect(settings.get_string('filter-name'));
 
-            this._loadSettings();
+            strengthSlider.connect('notify::value', () => this._setStrength(strengthSlider.value));
+            settings.bind('filter-strength', strengthSlider, 'value', 0);
+
+            switchOff.connect('notify::state', () => this._setEnabled(this._switch.state));
+            settings.bind('filter-active', this._switch, 'state', 0);
         }
 
         destroy() {
@@ -119,14 +128,10 @@ const MenuButton = GObject.registerClass(
                 GLib.source_remove(this._labelTimeoutId);
             }
 
-            if (this._delayedSaveId) {
-                GLib.source_remove(this._delayedSaveId);
-            }
-
             super.destroy();
         }
 
-        _setSelected(item, save = true) {
+        _setSelected(item) {
             if (this._selectedItem) {
                 this._selectedItem.setOrnament(PopupMenu.Ornament.NONE);
             }
@@ -137,10 +142,10 @@ const MenuButton = GObject.registerClass(
             this._strengthSlider.visible = effect.properties.factor !== undefined;
             this._activeLabel.text = effect.description;
 
-            this._applyEffect(item, save);
+            this._changeEffect(item);
         }
 
-        _setEnabled(enabled, save = true) {
+        _setEnabled(enabled) {
             if (this._panelIcon) {
                 this._panelBin.remove_child(this._panelIcon);
                 this._panelIcon.destroy();
@@ -151,14 +156,14 @@ const MenuButton = GObject.registerClass(
             this._panelIcon = new St.Icon({ gicon, icon_size: PANEL_ICON_SIZE });
             this._panelBin.add_child(this._panelIcon);
 
-            this._applyEffect(this._selectedItem, save);
+            this._changeEffect();
         }
 
-        _setStrength(_strength, save = true) {
-            this._applyEffect(this._selectedItem, save);
+        _setStrength(_strength) {
+            this._changeEffect();
         }
 
-        _applyEffect(newItem, save = true) {
+        _changeEffect(newItem = this._selectedItem) {
             const oldShader = this._shader ? this._selectedItem._effect.shader : null;
             const newShader = this._switch.state ? newItem._effect.shader : null;
             this._selectedItem = newItem;
@@ -179,43 +184,6 @@ const MenuButton = GObject.registerClass(
                     this._shader.updateEffect(newEffect.properties);
                 }
             }
-
-            if (save) {
-                this._saveSettings();
-            }
-        }
-
-        _saveSettings() {
-            if (this._delayedSaveId)
-                GLib.source_remove(this._delayedSaveId);
-
-            this._delayedSaveId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                200,
-                () => {
-                    const settings = this._settings;
-                    settings.set_boolean('filter-active', this._switch.state);
-                    settings.set_string('filter-name', this._selectedItem._effect.name);
-                    settings.set_int('filter-strength', Math.round(this._strengthSlider.value * 100));
-
-                    this._delayedSaveId = 0;
-                    return GLib.SOURCE_REMOVE;
-                }
-            );
-        }
-
-        _loadSettings() {
-            const settings = this._settings;
-
-            const effectName = settings.get_string('filter-name');
-            const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
-            this._setSelected(selectedItem, false);
-
-            this._strengthSlider.value = settings.get_int('filter-strength') / 100.0;
-            this._setStrength(this._strengthSlider.value);
-
-            this._switch.state = settings.get_boolean('filter-active');
-            this._setEnabled(this._switch.state);
         }
 
         vfunc_event(event) {
@@ -233,7 +201,7 @@ const MenuButton = GObject.registerClass(
                 const step = direction === Clutter.ScrollDirection.UP ? numItems - 2 : 1;
                 const index = (this._menuItems.indexOf(this._selectedItem) + step) % (numItems - 1);
                 const item = this._menuItems[index];
-                this._setSelected(item);
+                this._settings.set_string('filter-name', item._effect.name);
                 this._setPanelLabel(item._effect.shortName);
 
                 return Clutter.EVENT_STOP;
@@ -242,8 +210,7 @@ const MenuButton = GObject.registerClass(
             if (event.type() === Clutter.EventType.BUTTON_PRESS && (event.get_button() === Clutter.BUTTON_PRIMARY || event.get_button() === Clutter.BUTTON_MIDDLE)) {
                 // primary button toggles active filter on/off
                 if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                    this._switch.state = !this._switch.state;
-                    this._setEnabled(this._switch.state);
+                    this._switch.toggle();
                     return Clutter.EVENT_STOP;
                 }
             } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_SECONDARY)) {
