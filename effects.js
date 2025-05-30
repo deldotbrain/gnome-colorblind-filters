@@ -87,7 +87,7 @@ function getColorblindEffects(mode) {
             short: 'MT',
             whichCone: 2,
             tritanHack: true,
-        }
+        },
     ];
     const transforms = [
         {
@@ -100,15 +100,26 @@ function getColorblindEffects(mode) {
         },
     ];
 
+    const isCorrection = mode.name === 'Correction'
+    if (isCorrection) {
+        transforms.unshift({
+            name: 'ES',
+            transform: 'HPE',
+            short: 'E',
+            errorSteering: true,
+        });
+    }
+
     return transforms.flatMap((x) => types.map((t) => ({
         description: `${t.longName} ${mode.name} (${x.name})`,
         name: `${t.name}${mode.name}${x.name}`,
         shortName: `${t.short}${mode.short}${x.short}`,
         properties: {
             tritanHack: t.tritanHack || false,
+            errorSteering: x.errorSteering || false,
             whichCone: t.whichCone,
-            transform: x.name,
-            isCorrection: mode.name === 'Correction',
+            transform: x.transform || x.name,
+            isCorrection,
             factor: 1,
         },
         shader: Shaders.DaltonismEffect,

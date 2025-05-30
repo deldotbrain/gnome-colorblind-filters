@@ -34,6 +34,14 @@ export function dot3(a, b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+export function scale3(s, vec) {
+    return vec.map((x) => x * s);
+}
+
+export function magnitude3(vec) {
+    return Math.sqrt(dot3(vec, vec));
+}
+
 export function multiplyMatrixVec(mat, vec) {
     return Array(3).fill().map((_, i) => dot3(getRow3(mat, i), vec));
 }
@@ -47,23 +55,15 @@ export function cross3(a, b) {
 }
 
 export function add3x3(a, b) {
-    let result = Array(9);
-    for (let i = 0; i < 9; i++) {
-        result[i] = a[i] + b[i];
-    }
-    return result;
+    return Array(9).fill().map((_, i) => a[i] + b[i]);
 }
 
 export function sub3x3(a, b) {
-    let result = Array(9);
-    for (let i = 0; i < 9; i++) {
-        result[i] = a[i] - b[i];
-    }
-    return result;
+    return Array(9).fill().map((_, i) => a[i] - b[i]);
 }
 
 export function mult3x3(a, b) {
-    let result = Array(9);
+    const result = Array(9);
 
     for (let c = 0; c < 3; c++) {
         for (let r = 0; r < 3; r++) {
@@ -74,3 +74,6 @@ export function mult3x3(a, b) {
     return result;
 }
 
+export function scale3x3(s, mat) {
+    return mat.map((x) => x * s);
+}

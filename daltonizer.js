@@ -74,9 +74,31 @@ const transforms = {
     }
 };
 
-// The actual AOSP algorithm. Returns a 3x3 matrix to transform rgb values.
+
+// The error ((sim - I) * rgb2lms * rgb) is parallel to the blind-cone axis.
+// Compute a matrix to rotate the error towards white.
+function getSteeringMatrix(coneAxis, directionVec, worstErrorMag, factor) {
+    // https://math.stackexchange.com/a/476311
+    // coneAxis is already normalized
+    const whiteMag = M.magnitude3(directionVec);
+    const normWhite = M.scale3(1 / whiteMag, directionVec);
+
+    const v = M.cross3(coneAxis, normWhite);
+    const c = M.dot3(coneAxis, normWhite);
+
+    const cp = [0, v[2], -v[1], -v[2], 0, v[0], v[1], -v[0], 0];
+
+    // It's a rotation matrix. The internet told me so!
+    const r = M.add3x3(M.identity3x3(), M.add3x3(cp,
+        M.scale3x3(1 / (1 + c), M.mult3x3(cp, cp))));
+
+    // Apply a scaling factor such that the worst-case error is scaled to the
+    // full -directionVec.
+    return M.scale3x3(-factor * whiteMag / worstErrorMag, r);
+}
+
 export function getCorrection3x3(properties) {
-    const { whichCone, transform, isCorrection, factor, tritanHack } = properties;
+    const { whichCone, transform, isCorrection, factor, tritanHack, errorSteering } = properties;
     const pick = (p, d, t) => [p, d, t][whichCone];
     const { rgb2lms, lms2rgb } = transforms[transform];
 
@@ -107,10 +129,23 @@ export function getCorrection3x3(properties) {
     // If correcting, negate the error and spread it across the other cones.
     // If simulating, scale it and leave it on the same cone.
     const spread = isCorrection
-        ? pick(
-            [0.0, -factor, -factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, -factor, 0.0, -factor, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -factor, -factor, 0.0])
+        ? errorSteering
+            ? getSteeringMatrix(
+                pick([1, 0, 0], [0, 1, 0], [0, 0, 1]),
+                // I have no idea *where* to point the error.
+                //lms_bw,
+                pick(lms_ab, lms_ab, lms_bw),
+                //pick(lms_ab, lms_ab, M.multiplyMatrixVec(rgb2lms, [1, 1, 0])),
+                // Assumption: worst-case error happens with the most-affected
+                // primary
+                M.magnitude3(M.multiplyMatrixVec(
+                    M.sub3x3(simulation, M.identity3x3()),
+                    M.getCol3(rgb2lms, whichCone))),
+                factor)
+            : pick(
+                [0.0, -factor, -factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, -factor, 0.0, -factor, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -factor, -factor, 0.0])
         : [factor, 0.0, 0.0, 0.0, factor, 0.0, 0.0, 0.0, factor];
     const adjustment = M.add3x3(M.identity3x3(), M.mult3x3(spread, error));
     // Taken together: lms2rgb * (I - (spread * (sim - I)) * rgb2lms
