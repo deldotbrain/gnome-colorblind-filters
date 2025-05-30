@@ -106,21 +106,24 @@ const MenuButton = GObject.registerClass(
             this.menu.addMenuItem(otherExpander);
 
             strengthSlider.connect('notify::value', () => this._setStrength(strengthSlider.value));
-            this.connect('destroy', () => {
-                if (this._shader) {
-                    Main.uiGroup.remove_effect_by_name(EFFECT_NAME);
-                }
-
-                if (this._labelTimeoutId) {
-                    GLib.source_remove(this._labelTimeoutId);
-                }
-
-                if (this._delayedSaveId) {
-                    GLib.source_remove(this._delayedSaveId);
-                }
-            });
 
             this._loadSettings();
+        }
+
+        destroy() {
+            if (this._shader) {
+                Main.uiGroup.remove_effect_by_name(EFFECT_NAME);
+            }
+
+            if (this._labelTimeoutId) {
+                GLib.source_remove(this._labelTimeoutId);
+            }
+
+            if (this._delayedSaveId) {
+                GLib.source_remove(this._delayedSaveId);
+            }
+
+            super.destroy();
         }
 
         _setSelected(item, save = true) {
