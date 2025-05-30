@@ -145,18 +145,18 @@ export function getEffectByName(name) {
     }
 }
 
-let shader_cache = new Map();
+const shader_cache = new Map();
 
 export function makeShader(effect) {
     const shaderClass = effect.shader;
 
-    if (shader_cache.has(shaderClass)) {
-        const shader = shader_cache[shaderClass];
-        shader._updateEffect(effect.properties);
-        return shader;
+    const cached = shader_cache.get(shaderClass);
+    if (cached) {
+        cached.updateEffect(effect.properties);
+        return cached;
     } else {
         const shader = new shaderClass(effect.properties);
-        shader_cache[shaderClass] = shader;
+        shader_cache.set(shaderClass, shader);
         return shader;
     }
 }
