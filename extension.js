@@ -227,8 +227,8 @@ const MenuButton = GObject.registerClass(
                     return Clutter.EVENT_STOP;
 
                 const numItems = this._menuItems.length;
-                const step = direction === Clutter.ScrollDirection.UP ? numItems - 1 : 1;
-                const index = (this._menuItems.indexOf(this._activeItem) + step) % (numItems - 1);
+                const step = direction === Clutter.ScrollDirection.UP ? numItems - 2 : 1;
+                const index = (this._menuItems.indexOf(this._selectedItem) + step) % (numItems - 1);
                 const item = this._menuItems[index];
                 this._setSelected(item);
                 this._setPanelLabel(item._effect.shortName);
