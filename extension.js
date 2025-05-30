@@ -77,24 +77,20 @@ const MenuButton = GObject.registerClass(
                     item.setOrnament(PopupMenu.Ornament.NONE);
                     item.connect('activate', () => settings.set_string('filter-name', e.name));
                     item._effect = e;
+                    item._submenu = menu;
                     this._menuItems.push(item);
-                    menu.addMenuItem(item);
+                    menu.menu.addMenuItem(item);
                 }
             };
 
             const correctionsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Corrections'));
-            addEffectsToMenu(effects.corrections, correctionsExpander.menu);
-            this.menu.connect('open-state-changed', (_menu, opened) => {
-                if (opened) {
-                    correctionsExpander.setSubmenuShown(true);
-                }
-            });
+            addEffectsToMenu(effects.corrections, correctionsExpander);
 
             const simulationsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Simulations'));
-            addEffectsToMenu(effects.simulations, simulationsExpander.menu);
+            addEffectsToMenu(effects.simulations, simulationsExpander);
 
             const otherExpander = new PopupMenu.PopupSubMenuMenuItem(_('Other Effects'));
-            addEffectsToMenu(effects.others, otherExpander.menu);
+            addEffectsToMenu(effects.others, otherExpander);
 
             this.menu.addMenuItem(switchOff);
             this.menu.addMenuItem(sliderMenuItem);
@@ -104,6 +100,12 @@ const MenuButton = GObject.registerClass(
             this.menu.addMenuItem(simulationsExpander);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(otherExpander);
+
+            this.menu.connect('open-state-changed', (_menu, opened) => {
+                if (opened && this._selectedItem) {
+                    this._selectedItem._submenu.setSubmenuShown(true);
+                }
+            });
 
             const setEffect = (effectName) => {
                 const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
