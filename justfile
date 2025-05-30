@@ -1,7 +1,12 @@
-package := 'colorblind-filters-aosp@amyp.codeberg.org'
+suffix := 'dev'
+package := 'colorblind-filters-aosp-' + suffix + '@amyp.codeberg.org'
 
-zip:
-    make zip
+zip: (make 'zip')
+
+clean: (make 'clean')
+
+make *target:
+    make SUFFIX={{suffix}} {{target}}
 
 install: zip
     gnome-extensions install --force {{package}}.zip

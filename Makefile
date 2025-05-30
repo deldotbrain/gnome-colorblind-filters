@@ -1,25 +1,32 @@
-SHELL := /bin/sh
-
 # Replace these with the name and domain of your extension!
-NAME     := colorblind-filters-aosp
-DOMAIN   := amyp.codeberg.org
-ZIP_NAME := $(NAME)@$(DOMAIN).zip
+NAME ?= colorblind-filters-aosp
+DOMAIN ?= amyp.codeberg.org
 
-# Some of the recipes below depend on some of these files.
-JS_FILES       = $(shell find -type f -and \( -name "*.js" \))
-UI_FILES       = $(shell find -type f -and \( -name "*.ui" \))
-#RESOURCE_FILES = $(shell find resources -mindepth 2 -type f)
-LOCALES_PO     = $(wildcard po/*.po)
-LOCALES_MO     = $(patsubst po/%.po,locale/%/LC_MESSAGES/$(NAME).mo,$(LOCALES_PO))
+# Set to e.g. dev to change UUID, settings location, etc. for testing
+SUFFIX ?=
+sfx := $(if $(SUFFIX),-$(SUFFIX))
 
-# These files will be included in the extension zip file.
-ZIP_CONTENT = $(JS_FILES) $(LOCALES_MO) \
-              schemas/* schemas/gschemas.compiled metadata.json LICENSE
+PNAME := $(NAME)$(sfx)
+UUID := $(PNAME)@$(DOMAIN)
+ZIP_NAME := $(UUID).zip
+
+BUILD_TMP ?= build$(sfx)
+
+js_files = $(wildcard *.js)
+locales_po = $(wildcard po/*.po)
+locales_mo = $(patsubst po/%.po,$(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo,$(locales_po))
+
+zip_generated = \
+		$(BUILD_TMP)/metadata.json \
+		$(BUILD_TMP)/schemas/gschemas.compiled \
+		$(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml \
+		$(locales_mo)
+zip_asis = $(patsubst %,$(BUILD_TMP)/%,$(js_files))
 
 # These six recipes can be invoked by the user.
-.PHONY: all zip install uninstall pot clean
+.PHONY: all zip install uninstall clean
 
-all: $(ZIP_CONTENT)
+all: $(zip_generated)
 
 # The zip recipes only bundles the extension without installing it.
 zip: $(ZIP_NAME)
@@ -31,31 +38,54 @@ install: $(ZIP_NAME)
 
 # This uninstalls the previously installed extension.
 uninstall:
-	gnome-extensions uninstall "$(NAME)@$(DOMAIN)"
+	gnome-extensions uninstall "$(UUID)"
 
 # Use gettext to generate a translation template file.
-pot: $(JS_FILES) $(UI_FILES)
-	@echo "Generating '$(NAME).pot'..."
-	@xgettext --from-code=UTF-8 \
+$(BUILD_TMP)/po/$(NAME).pot: $(js_files)
+	mkdir -p $(BUILD_TMP)/po
+	xgettext --from-code=UTF-8 \
 	          --add-comments=Translators \
 	          --copyright-holder="GdH" \
 	          --package-name="$(NAME)" \
-	          --output=po/$(NAME).pot \
-	          $(JS_FILES) $(UI_FILES)
+	          --output=$(BUILD_TMP)/po/$(NAME).pot \
+	          $(js_files)
 
 # This removes all temporary files created with the other recipes.
 clean:
-	rm -rf $(ZIP_NAME) \
-	       schemas/gschemas.compiled \
-	       locale
+	rm -rf $(BUILD_TMP) $(ZIP_NAME)
+
+$(BUILD_TMP):
+	mkdir -p $(BUILD_TMP)
+
+$(BUILD_TMP)/metadata.json: metadata.json $(BUILD_TMP)
+	jq '.["settings-schema"] = "org.gnome.shell.extensions.$(PNAME)" | .uuid = "$(UUID)"$(if $(SUFFIX), | .name = .name + " ($(SUFFIX))")' $< >$@
+
+$(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
+	mkdir -p $(BUILD_TMP)/schemas
+	xmlstarlet ed \
+		-u //schema/@id -v "org.gnome.shell.extensions.$(PNAME)" \
+		-u //schema/@path -v "/org/gnome/shell/extensions/$(PNAME)/" \
+		$< > $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
+
+# Compiles the gschemas.compiled file from the gschema.xml file.
+$(BUILD_TMP)/schemas/gschemas.compiled: $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
+	glib-compile-schemas $(BUILD_TMP)/schemas
+
+# FIXME surely gettext can't see its .pot file, but it doesn't care? It's fine,
+# I broke i18n ages ago anyway.
+$(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po $(BUILD_TMP)/po/$(NAME).pot
+	mkdir -p $(BUILD_TMP)/locale/$*/LC_MESSAGES
+	msgfmt -c -o $@ $<
+
+$(BUILD_TMP)/%.js: %.js $(BUILD_TMP)
+	cp $< $@
 
 # This bundles the extension and checks whether it is small enough to be uploaded to
 # extensions.gnome.org. We do not use "gnome-extensions pack" for this, as this is not
 # readily available on the GitHub runners.
-$(ZIP_NAME): $(ZIP_CONTENT)
-	@echo "Packing zip file..."
-	@rm --force $(ZIP_NAME)
-	@zip $(ZIP_NAME) -- $(ZIP_CONTENT)
+$(ZIP_NAME): $(zip_generated) $(zip_asis)
+	rm --force $(ZIP_NAME)
+	cd $(BUILD_TMP) && zip -r "$(abspath $(ZIP_NAME))" $(patsubst $(BUILD_TMP)/%,%,$^)
 
 	@#Check if the zip size is too big to be uploaded
 	@SIZE=$$(unzip -Zt $(ZIP_NAME) | awk '{print $$3}') ; \
@@ -64,26 +94,3 @@ $(ZIP_NAME): $(ZIP_CONTENT)
 	         "the extensions website, keep it smaller than 5 MB!"; \
 	    exit 1; \
 	 fi
-
-# Compiles the gschemas.compiled file from the gschema.xml file.
-schemas/gschemas.compiled: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
-	@echo "Compiling schemas..."
-	@glib-compile-schemas schemas
-
-# Compiles the gresource file from the gresources.xml.
-#resources/$(NAME).gresource: resources/$(NAME).gresource.xml
-#	@echo "Compiling resources..."
-#	@glib-compile-resources --sourcedir="resources" --generate resources/$(NAME).gresource.xml
-
-# Generates the gresources.xml based on all files in the resources subdirectory.
-#resources/$(NAME).gresource.xml: $(RESOURCE_FILES)
-#	@echo "Creating resources xml..."
-#	@FILES=$$(find "resources" -mindepth 2 -type f -printf "%P\n" | xargs -i echo "<file>{}</file>") ; \
-	 echo "<?xml version='1.0' encoding='UTF-8'?><gresources><gresource> $$FILES </gresource></gresources>" \
-	     > resources/$(NAME).gresource.xml
-
-# Compiles all *.po files to *.mo files.
-locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
-	@echo "Compiling $@"
-	@mkdir -p locale/$*/LC_MESSAGES
-	@msgfmt -c -o $@ $<

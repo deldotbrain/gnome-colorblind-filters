@@ -31,7 +31,7 @@ export default class CBFilters extends Extension {
     enable() {
         _ = this.gettext.bind(this);
         this._menu = new MenuButton(this);
-        Main.panel.addToStatusArea('ColorBlindFilters', this._menu, 0, 'right');
+        Main.panel.addToStatusArea(this.name, this._menu, 0, 'right');
     }
 
     disable() {

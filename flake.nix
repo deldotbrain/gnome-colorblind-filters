@@ -20,6 +20,8 @@
             gettext
             glib.dev
             gnumake
+            jq
+            xmlstarlet
           ];
         };
     };
