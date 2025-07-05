@@ -189,6 +189,7 @@ const MenuButton = GObject.registerClass(
                 } else {
                     this._shader.updateEffect(newEffect.properties);
                 }
+                Main.uiGroup.queue_redraw();
             }
         }
 

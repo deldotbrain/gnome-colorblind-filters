@@ -17,7 +17,6 @@ export const DesaturateEffect = GObject.registerClass(
     class DesaturateEffect extends Clutter.DesaturateEffect {
         updateEffect(properties) {
             this.factor = properties.factor;
-            this.queue_repaint();
         }
     });
 
@@ -33,7 +32,6 @@ export const InversionEffect = GObject.registerClass(
         updateEffect(properties) {
             this.set_uniform_value('tex', 0);
             this.set_uniform_value('INVERSION_MODE', properties.mode);
-            this.queue_repaint();
         }
 
         vfunc_get_static_shader_source() {
@@ -91,7 +89,6 @@ export const ColorMixerEffect = GObject.registerClass(
             this.set_uniform_value('tex', 0);
             this.set_uniform_value('MIX_MODE', properties.mode);
             this.set_uniform_value('STRENGTH', properties.factor);
-            this.queue_repaint();
         }
 
         vfunc_get_static_shader_source() {
@@ -134,7 +131,6 @@ export const DaltonismEffect = GObject.registerClass(
             for (let i = 0; i < 9; i++) {
                 this.set_uniform_value(`CORRECTION${i}`, correction[i]);
             }
-            this.queue_repaint();
         }
 
         vfunc_get_static_shader_source() {
