@@ -107,12 +107,9 @@ const MenuButton = GObject.registerClass(
                 }
             });
 
-            const setEffect = (effectName) => {
-                const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
-                this._setSelected(selectedItem, false);
-            };
-            settings.connect('changed::filter-name', (s, k) => setEffect(s.get_string(k)));
-            setEffect(settings.get_string('filter-name'));
+            settings.connect('changed::filter-name', (s, k) => this._setEffect(s.get_string(k)));
+            this._curEffect = settings.get_string('filter-name');
+            this._setEffect(this._curEffect);
 
             strengthSlider.connect('notify::value', () => this._setStrength(strengthSlider.value));
             settings.bind('filter-strength', strengthSlider, 'value', 0);
@@ -146,6 +143,13 @@ const MenuButton = GObject.registerClass(
 
             this._changeEffect(item);
         }
+
+        _setEffect(effectName) {
+            this._lastEffect = this._curEffect;
+            this._curEffect = effectName;
+            const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
+            this._setSelected(selectedItem, false);
+        };
 
         _setEnabled(enabled) {
             if (this._panelIcon) {
@@ -209,14 +213,14 @@ const MenuButton = GObject.registerClass(
                 return Clutter.EVENT_STOP;
             }
 
-            if (event.type() === Clutter.EventType.BUTTON_PRESS && (event.get_button() === Clutter.BUTTON_PRIMARY || event.get_button() === Clutter.BUTTON_MIDDLE)) {
-                // primary button toggles active filter on/off
-                if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                    this._switch.toggle();
-                    return Clutter.EVENT_STOP;
-                }
+            if (event.type() === Clutter.EventType.BUTTON_PRESS && (event.get_button() === Clutter.BUTTON_PRIMARY)) {
+                this._switch.toggle();
+                return Clutter.EVENT_STOP;
             } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_SECONDARY)) {
                 this.menu.toggle();
+                return Clutter.EVENT_STOP;
+            } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_MIDDLE)) {
+                this._setEffect(this._lastEffect);
                 return Clutter.EVENT_STOP;
             }
 
