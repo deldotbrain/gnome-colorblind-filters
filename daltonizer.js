@@ -75,16 +75,19 @@ const transforms = {
 };
 
 
-// The error ((sim - I) * rgb2lms * rgb) is parallel to the blind-cone axis.
-// Compute a matrix to rotate the error towards white.
-function getSteeringMatrix(coneAxis, directionVec, worstErrorMag, factor) {
+// Compute a transformation that rotates the LMS error vector produced from a
+// simulated RGB primary towards another LMS color. Also, scale the
+// transformation by the intensity factor.
+function getSteeringMatrix(directionVec, primaryError, factor) {
     // https://math.stackexchange.com/a/476311
-    // coneAxis is already normalized
     const whiteMag = M.magnitude3(directionVec);
-    const normWhite = M.scale3(1 / whiteMag, directionVec);
+    const errorMag = M.magnitude3(primaryError);
 
-    const v = M.cross3(coneAxis, normWhite);
-    const c = M.dot3(coneAxis, normWhite);
+    const normWhite = M.scale3(1 / whiteMag, directionVec);
+    const normWorst = M.scale3(1 / errorMag, primaryError);
+
+    const v = M.cross3(normWorst, normWhite);
+    const c = M.dot3(normWorst, normWhite);
 
     const cp = [0, v[2], -v[1], -v[2], 0, v[0], v[1], -v[0], 0];
 
@@ -94,7 +97,7 @@ function getSteeringMatrix(coneAxis, directionVec, worstErrorMag, factor) {
 
     // Apply a scaling factor such that the worst-case error is scaled to the
     // full -directionVec.
-    return M.scale3x3(-factor * whiteMag / worstErrorMag, r);
+    return M.scale3x3(factor * whiteMag / errorMag, r);
 }
 
 export function getCorrection3x3(properties) {
@@ -131,16 +134,15 @@ export function getCorrection3x3(properties) {
     const spread = isCorrection
         ? errorSteering
             ? getSteeringMatrix(
-                pick([1, 0, 0], [0, 1, 0], [0, 0, 1]),
-                // I have no idea *where* to point the error.
+                // I have no idea *where* to point the error. For tritans, white
+                // will improve visibility. For prot/deuterans, it won't prevent
+                // confusion. Maybe magenta/cyan-ish would at least make the
+                // colors more distinct?
                 //lms_bw,
-                pick(lms_ab, lms_ab, lms_bw),
-                //pick(lms_ab, lms_ab, M.multiplyMatrixVec(rgb2lms, [1, 1, 0])),
-                // Assumption: worst-case error happens with the most-affected
-                // primary
-                M.magnitude3(M.multiplyMatrixVec(
-                    M.sub3x3(simulation, M.identity3x3()),
-                    M.getCol3(rgb2lms, whichCone))),
+                M.multiplyMatrixVec(rgb2lms, pick([0.5, 0, 1], [0, 0.5, 1], [1, 1, 1])),
+                M.multiplyMatrixVec(
+                    error,
+                    M.getCol3(rgb2lms, whichCone)),
                 factor)
             : pick(
                 [0.0, -factor, -factor, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
