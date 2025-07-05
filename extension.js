@@ -24,14 +24,13 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Effects from './effects.js';
 
 const PANEL_ICON_SIZE = 18; // default +2 looks better
-const EFFECT_NAME = 'colorblind';
 let _;
 
 export default class CBFilters extends Extension {
     enable() {
         _ = this.gettext.bind(this);
         this._menu = new MenuButton(this);
-        Main.panel.addToStatusArea(this.name, this._menu, 0, 'right');
+        Main.panel.addToStatusArea(this.metadata.name, this._menu, 0, 'right');
     }
 
     disable() {
@@ -45,6 +44,7 @@ const MenuButton = GObject.registerClass(
     class MenuButton extends PanelMenu.Button {
         _init(me) {
             super._init(0.5, 'ColorblindMenu', false);
+            this._name = me.metadata.name;
             const settings = me.getSettings();
             this._settings = settings;
 
@@ -123,7 +123,7 @@ const MenuButton = GObject.registerClass(
 
         destroy() {
             if (this._shader) {
-                Main.uiGroup.remove_effect_by_name(EFFECT_NAME);
+                Main.uiGroup.remove_effect_by_name(this._name);
             }
 
             if (this._labelTimeoutId) {
@@ -172,7 +172,7 @@ const MenuButton = GObject.registerClass(
             const newEffect = newItem._effect;
 
             if (oldShader !== null && oldShader !== newShader) {
-                Main.uiGroup.remove_effect_by_name(EFFECT_NAME);
+                Main.uiGroup.remove_effect_by_name(this._name);
                 this._shader = null;
             }
             if (newShader !== null) {
@@ -181,7 +181,7 @@ const MenuButton = GObject.registerClass(
                 }
                 if (oldShader != newShader) {
                     this._shader = Effects.makeShader(newEffect);
-                    Main.uiGroup.add_effect_with_name(EFFECT_NAME, this._shader);
+                    Main.uiGroup.add_effect_with_name(this._name, this._shader);
                 } else {
                     this._shader.updateEffect(newEffect.properties);
                 }
