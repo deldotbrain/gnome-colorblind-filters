@@ -70,10 +70,10 @@ const MenuButton = GObject.registerClass(
             this._strengthSlider = strengthSlider;
 
             this._menuItems = [];
-            const effects = Effects.getEffectGroups();
+            const effects = Effects.getEffectGroups(_);
             const addEffectsToMenu = (effects, menu) => {
                 for (const e of effects) {
-                    const item = new PopupMenu.PopupMenuItem(_(e.description));
+                    const item = new PopupMenu.PopupMenuItem(e.description);
                     item.setOrnament(PopupMenu.Ornament.NONE);
                     item.connect('activate', () => settings.set_string('filter-name', e.name));
                     item._effect = e;
@@ -134,6 +134,10 @@ const MenuButton = GObject.registerClass(
         }
 
         _setSelected(item) {
+            if (item === undefined) {
+                return;
+            }
+
             if (this._selectedItem) {
                 this._selectedItem.setOrnament(PopupMenu.Ornament.NONE);
             }

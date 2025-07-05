@@ -9,10 +9,10 @@
 
 import * as Shaders from './shaders.js';
 
-function getOtherEffects() {
+function getOtherEffects(_) {
     return [
         {
-            description: 'Channel Mixer - GBR',
+            description: _('Channel Mixer - GBR'),
             name: 'ColorMixerGBR',
             shortName: 'GBR',
             properties: {
@@ -22,7 +22,7 @@ function getOtherEffects() {
             shader: Shaders.ColorMixerEffect,
         },
         {
-            description: 'Channel Mixer - BRG',
+            description: _('Channel Mixer - BRG'),
             name: 'ColorMixerBRG',
             shortName: 'BRG',
             properties: {
@@ -32,7 +32,7 @@ function getOtherEffects() {
             shader: Shaders.ColorMixerEffect,
         },
         {
-            description: 'Desaturation',
+            description: _('Desaturation'),
             name: 'Desaturation',
             shortName: 'D',
             properties: {
@@ -41,7 +41,7 @@ function getOtherEffects() {
             shader: Shaders.DesaturateEffect,
         },
         {
-            description: 'Lightness Inversion',
+            description: _('Lightness Inversion'),
             name: 'LightnessInversion',
             shortName: 'LI',
             properties: {
@@ -50,7 +50,7 @@ function getOtherEffects() {
             shader: Shaders.InversionEffect,
         },
         {
-            description: 'Color Inversion',
+            description: _('Color Inversion'),
             name: 'ColorInversion',
             shortName: 'CI',
             properties: {
@@ -61,93 +61,238 @@ function getOtherEffects() {
     ];
 }
 
-function getColorblindEffects(mode) {
-    const types = [
+function getSimulationEffects(_) {
+    return [
         {
-            longName: 'Protanopia',
-            name: 'Protan',
-            short: 'P',
-            whichCone: 0,
+            description: _('Protanopia Simulation'),
+            name: 'ProtanSim',
+            shortName: 'PS',
+            properties: {
+                errorSteering: null,
+                whichCone: 0,
+                isCorrection: false,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
         },
         {
-            longName: 'Deuteranopia',
-            name: 'Deuter',
-            short: 'D',
-            whichCone: 1,
+            description: _('Deuteranopia Simulation'),
+            name: 'DeuteranSim',
+            shortName: 'DS',
+            properties: {
+                errorSteering: null,
+                whichCone: 1,
+                isCorrection: false,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
         },
         {
-            longName: 'Tritanopia',
-            name: 'Tritan',
-            short: 'T',
-            whichCone: 2,
-        },
-        {
-            longName: 'Modified Tritanopia',
-            name: 'ModTritan',
-            short: 'MT',
-            whichCone: 2,
-            tritanHack: true,
+            description: _('Tritanopia Simulation'),
+            name: 'TritanSim',
+            shortName: 'TS',
+            properties: {
+                errorSteering: null,
+                whichCone: 2,
+                isCorrection: false,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
         },
     ];
-    const transforms = [
+}
+
+function getCorrectionEffects() {
+    return [
         {
-            name: 'HPE',
-            short: 'H',
+            description: _('Protanopia Correction') + ' (+W)',
+            name: 'ProtanCorrW',
+            shortName: 'PCW',
+            properties: {
+                errorSteering: [1, 1, 1],
+                whichCone: 0,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
         },
         {
-            name: 'AOSP',
-            short: 'A',
+            description: _('Protanopia Correction') + ' (+R)',
+            name: 'ProtanCorr-R',
+            shortName: 'PCR',
+            properties: {
+                errorSteering: [1, 0, 0],
+                whichCone: 0,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Protanopia Correction') + ' (+R-g)',
+            name: 'ProtanCorr-Rg',
+            shortName: 'PCRg',
+            properties: {
+                errorSteering: [1, -0.5, 0],
+                whichCone: 0,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Protanopia Correction') + ' (+R-g+b)',
+            name: 'ProtanCorr-RgB',
+            shortName: 'PCRgB',
+            properties: {
+                errorSteering: [1, -0.5, 0.5],
+                whichCone: 0,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Protanopia Correction') + ' (+r-g+B)',
+            name: 'ProtanCorr-RgBB',
+            shortName: 'PCRgBB',
+            properties: {
+                errorSteering: [0.5, -0.5, 1],
+                whichCone: 0,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (+W)',
+            name: 'DeuteranCorr-W',
+            shortName: 'DCW',
+            properties: {
+                errorSteering: [1, 1, 1],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (+G)',
+            name: 'DeuteranCorr-G',
+            shortName: 'DCG',
+            properties: {
+                errorSteering: [0, 1, 0],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (-r+G)',
+            name: 'DeuteranCorr-rG',
+            shortName: 'DCrG',
+            properties: {
+                errorSteering: [-0.5, 1, 0],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            // Having read about the opponent color model a little bit, I don't
+            // think this will be helpful; probably -B would be?
+            description: _('Deuteranopia Correction') + ' (-r+G+b)',
+            name: 'DeuteranCorr-rGB',
+            shortName: 'DCrGB',
+            properties: {
+                errorSteering: [-0.5, 1, 0.5],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (-r+g+B)',
+            name: 'DeuteranCorr-rGBB',
+            shortName: 'DCrGBB',
+            properties: {
+                errorSteering: [-0.5, 0.5, 1.0],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (-r+G-b)',
+            name: 'DeuteranCorr-rGb',
+            shortName: 'DCrGb',
+            properties: {
+                errorSteering: [-0.5, 1, -0.5],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Deuteranopia Correction') + ' (-r+g-B)',
+            name: 'DeuteranCorr-rGbb',
+            shortName: 'DCrGbb',
+            properties: {
+                errorSteering: [-0.5, 0.5, -1],
+                whichCone: 1,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Tritanopia Correction') + ' (+W)',
+            name: 'TritanCorr-W',
+            shortName: 'TCW',
+            properties: {
+                errorSteering: [1, 1, 1],
+                whichCone: 2,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        },
+        {
+            description: _('Tritanopia Correction') + ' (+B)',
+            name: 'TritanCorr-B',
+            shortName: 'TCB',
+            properties: {
+                errorSteering: [0, 0, 1],
+                whichCone: 2,
+                isCorrection: true,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
         },
     ];
-
-    const isCorrection = mode.name === 'Correction'
-    if (isCorrection) {
-        transforms.unshift({
-            name: 'ES',
-            transform: 'HPE',
-            short: 'E',
-            errorSteering: true,
-        });
-    }
-
-    return transforms.flatMap((x) => types.map((t) => ({
-        description: `${t.longName} ${mode.name} (${x.name})`,
-        name: `${t.name}${mode.name}${x.name}`,
-        shortName: `${t.short}${mode.short}${x.short}`,
-        properties: {
-            tritanHack: t.tritanHack || false,
-            errorSteering: x.errorSteering || false,
-            whichCone: t.whichCone,
-            transform: x.transform || x.name,
-            isCorrection,
-            factor: 1,
-        },
-        shader: Shaders.DaltonismEffect,
-    })));
 }
 
 let allEffects = null;
 
-export function getEffectGroups() {
+export function getEffectGroups(_) {
     if (allEffects === null) {
         allEffects = {
-            corrections: getColorblindEffects({
-                name: 'Correction',
-                short: 'C',
-            }),
-            simulations: getColorblindEffects({
-                name: 'Simulation',
-                short: 'S',
-            }),
-            others: getOtherEffects(),
+            corrections: getCorrectionEffects(_),
+            simulations: getSimulationEffects(_),
+            others: getOtherEffects(_),
         };
     }
 
     return allEffects;
 }
 
-export function getEffectByName(name) {
-    for (const [_, effects] of Object.entries(getEffectGroups())) {
+export function getEffectByName(_, name) {
+    for (const [_, effects] of Object.entries(getEffectGroups(_))) {
         for (const e of effects) {
             if (e.name == name) {
                 return e;
