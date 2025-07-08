@@ -146,6 +146,7 @@ const MenuButton = GObject.registerClass(
 
         _setEffect(effectName) {
             this._lastEffect = this._curEffect;
+            this._lastFactor = this._strengthSlider.value;
             this._curEffect = effectName;
             const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
             this._setSelected(selectedItem, false);
@@ -221,7 +222,10 @@ const MenuButton = GObject.registerClass(
                 this.menu.toggle();
                 return Clutter.EVENT_STOP;
             } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_MIDDLE)) {
+                const oldFactor = this._strengthSlider.value;
+                this._strengthSlider.value = this._lastFactor;
                 this._setEffect(this._lastEffect);
+                this._lastFactor = oldFactor;
                 return Clutter.EVENT_STOP;
             }
 
