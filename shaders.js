@@ -13,6 +13,14 @@ import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import * as Daltonizer from './daltonizer.js';
 
+function set_uniform_float(effect, name, value) {
+    const gv = new GObject.Value();
+    gv.init(GObject.TYPE_FLOAT);
+    gv.set_float(value);
+
+    effect.set_uniform_value(name, gv);
+}
+
 export const DesaturateEffect = GObject.registerClass(
     class DesaturateEffect extends Clutter.DesaturateEffect {
         updateEffect(properties) {
@@ -88,7 +96,7 @@ export const ColorMixerEffect = GObject.registerClass(
         updateEffect(properties) {
             this.set_uniform_value('tex', 0);
             this.set_uniform_value('MIX_MODE', properties.mode);
-            this.set_uniform_value('STRENGTH', properties.factor);
+            set_uniform_float(this, 'STRENGTH', properties.factor);
         }
 
         vfunc_get_static_shader_source() {
@@ -129,7 +137,7 @@ export const DaltonismEffect = GObject.registerClass(
             const correction = Daltonizer.getCorrection3x3(properties);
             // None of Clutter's aggregate data types can be used from GJS, so:
             for (let i = 0; i < 9; i++) {
-                this.set_uniform_value(`CORRECTION${i}`, correction[i]);
+                set_uniform_float(this, `CORRECTION${i}`, correction[i]);
             }
         }
 
