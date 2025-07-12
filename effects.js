@@ -8,6 +8,7 @@
  */
 
 import * as Shaders from './shaders.js';
+import * as Opponent from './opponent.js';
 
 function getOtherEffects() {
     return [
@@ -110,20 +111,54 @@ function getColorblindEffects(mode) {
         });
     }
 
-    return transforms.flatMap((x) => types.map((t) => ({
-        description: `${t.longName} ${mode.name} (${x.name})`,
-        name: `${t.name}${mode.name}${x.name}`,
-        shortName: `${t.short}${mode.short}${x.short}`,
-        properties: {
-            tritanHack: t.tritanHack || false,
-            errorSteering: x.errorSteering || false,
-            whichCone: t.whichCone,
-            transform: x.transform || x.name,
-            isCorrection,
-            factor: 1,
+    const opponentCorrections = [
+        {
+            description: "Protanomaly Correction (OCS)",
+            name: "ProtOC",
+            shortName: "POC",
+            properties: {
+                whichCone: 0,
+                factor: 1
+            },
+            shader: Opponent.OpponentCorrectionEffect,
         },
-        shader: Shaders.DaltonismEffect,
-    })));
+        {
+            description: "Deuteranomaly Correction (OCS)",
+            name: "DeuterOC",
+            shortName: "DOC",
+            properties: {
+                whichCone: 1,
+                factor: 1
+            },
+            shader: Opponent.OpponentCorrectionEffect,
+        },
+        {
+            description: "Tritanomaly Correction (OCS)",
+            name: "TritOC",
+            shortName: "TOC",
+            properties: {
+                whichCone: 2,
+                factor: 1
+            },
+            shader: Opponent.OpponentCorrectionEffect,
+        },
+    ];
+
+    return (isCorrection ? opponentCorrections : []).concat(
+        transforms.flatMap((x) => types.map((t) => ({
+            description: `${t.longName} ${mode.name} (${x.name})`,
+            name: `${t.name}${mode.name}${x.name}`,
+            shortName: `${t.short}${mode.short}${x.short}`,
+            properties: {
+                tritanHack: t.tritanHack || false,
+                errorSteering: x.errorSteering || false,
+                whichCone: t.whichCone,
+                transform: x.transform || x.name,
+                isCorrection,
+                factor: 1,
+            },
+            shader: Shaders.DaltonismEffect,
+        }))));
 }
 
 let allEffects = null;
