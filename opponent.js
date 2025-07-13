@@ -235,17 +235,11 @@ export const OpponentCorrectionEffect = GObject.registerClass(
                         float den = dot(opp_weights, sim_grad * sim_grad);
 
                         // gradient descent
-                        if (den != 0) {
-                            float step = num / den;
-                            rgb -= step * grad;
-
-                            if (step < 0.05) {
-                                // the next step won't change the RGB value
-                                break;
-                            }
-                        } else {
+                        if (den == 0) {
                             break;
                         }
+                        float step = num / den;
+                        rgb -= step * grad;
                     }
 
                     cogl_color_out = vec4(rgb, c.a);
