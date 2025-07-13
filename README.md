@@ -82,8 +82,8 @@ that makes them look better. Most other daltonization filters work very
 similarly.
 
 Named after the [Hunt–Pointer–Estevez XYZ-to-LMS
-transform](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) that it
-uses.
+transform](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) that they
+use.
 
 ### "ES" Filters
 
@@ -109,7 +109,7 @@ constant when simulating, changing the appearance of greens considerably.
 
 The "Modified" filters hold the difference between red and green constant,
 balancing the change in their appearance between them. To my eyes, this looks
-less weird, but I don't have any evidence to say that it's more accurate.
+less weird, but I don't have any evidence to say that they're more accurate.
 
 ### "OCS" Filters
 
@@ -126,12 +126,12 @@ to be as accurate as others, its use of opponent color makes a very different
 correction approach possible.
 
 These filters search RGB space for a color which the colorblind observer is
-expected to perceive as the original color was intended. To do this, they define
-a cost function to describe the "goodness" of a chosen color based on its
-closeness to the intended color in opponent-color space and to the original
-color in RGB space. It searches near the original color using a couple
+expected to perceive as the original color was intended. To do this, they
+define a cost function to describe the "badness" of a chosen color based on its
+distance from the intended color in simulated opponent-color space and from the
+original color in RGB space. They search near the original color using a couple
 iterations of gradient descent to find an RGB value with minimal cost and
-displays it.
+display it.
 
 This approach is necessarily much more expensive than other filters (probably
 by a factor of 20-30, though it still doesn't add up to much actual
@@ -139,7 +139,7 @@ utilization), but yields results that (at least to my tritanomalous eyes) look
 more natural. While there are probably some optimizations that could be made to
 the filter algorithm, this filter will always be more complex to execute than
 daltonization, and daltonization (and linear filters more generally)
-fundamentally cannot make the same modifications that this filter does. It is
+fundamentally cannot make the same modifications that this filter does. Is it
 worth it? You decide.
 
 These filters are still very much under development. I think they already look
