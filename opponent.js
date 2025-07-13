@@ -152,14 +152,23 @@ export const OpponentCorrectionEffect = GObject.registerClass(
         updateEffect(properties) {
             const { whichCone, factor } = properties;
             // Cost of the opponent-space errors; first component is luma
-            const opp_weights = [5, 1, 1];
+            const opp_weights = [250, 50, 50];
+            // Cost of adjustment away from original RGB value. Has little
+            // effect for low factor, but avoids solutions far outside of the
+            // RGB gamut for high factors.
+            const rgb_weights = [1, 1, 1];
 
             // To correct for reduced cone sensitivity, search for an RGB value
             // that produces a point in opponent-color space for a colorblind
             // viewer that is close to the intended point. Luma errors are much
             // more visible than chroma, so they should be reduced compared to
-            // chroma errors. So, minimize a cost function:
-            // c(r,g,b) = W_v*(v_c - V_i)^2
+            // chroma errors. Finally, the RGB gamut is finite, so values that
+            // differ greatly from the original RGB should be avoided. So,
+            // minimize a cost function:
+            // c(r,g,b) = W_r*(r_c - R_0)^2
+            //          + W_g*(g_c - G_0)^2
+            //          + W_b*(b_c - B_0)^2
+            //          + W_v*(v_c - V_i)^2
             //          + W_yb*(yb_c - YB_i)^2
             //          + W_rg*(rg_c - RG_i)^2
             // i.e. the square of the distance in opponent-color space between
@@ -177,25 +186,30 @@ export const OpponentCorrectionEffect = GObject.registerClass(
 
             // As a minor optimization, the constant half of the partial
             // derivatives in the gradient are calculated only once.
-            updateUniform(this, 'rgb2const', M.scale3(-1,
-                M.mult3x3(
-                    M.transpose(rgb2sim),
+            updateUniform(this, 'rgb2const', M.scale3(-2,
+                M.add3x3(
+                    M.diagonal(rgb_weights),
                     M.mult3x3(
-                        M.diagonal(opp_weights),
-                        rgb2ideal))));
+                        M.transpose(rgb2sim),
+                        M.mult3x3(
+                            M.diagonal(opp_weights),
+                            rgb2ideal)))));
             // The variable half still needs to be calculated for every
             // iteration.
-            updateUniform(this, 'rgb2var',
-                M.mult3x3(
-                    M.transpose(rgb2sim),
+            updateUniform(this, 'rgb2var', M.scale3(2,
+                M.add3x3(
+                    M.diagonal(rgb_weights),
                     M.mult3x3(
-                        M.diagonal(opp_weights),
-                        rgb2sim)));
+                        M.transpose(rgb2sim),
+                        M.mult3x3(
+                            M.diagonal(opp_weights),
+                            rgb2sim)))));
 
             // The shader needs to know a lot about the cost function to solve
             // its derivative for zero.
             updateUniform(this, 'rgb2ideal', rgb2ideal);
             updateUniform(this, 'rgb2sim', rgb2sim);
+            updateUniform(this, 'rgb_weights', rgb_weights);
             updateUniform(this, 'opp_weights', opp_weights);
         }
 
@@ -211,11 +225,13 @@ export const OpponentCorrectionEffect = GObject.registerClass(
                 ${uniformDecl('rgb2sim')};
                 ${uniformDecl('rgb2const')};
                 ${uniformDecl('rgb2var')};
+                ${uniformDecl('rgb_weights', 3)};
                 ${uniformDecl('opp_weights', 3)};
 
                 void main() {
                     vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
 
+                    ${uniformDefn('rgb_weights', 'vec3', 3)};
                     ${uniformDefn('opp_weights', 'vec3', 3)};
 
                     ${uniformDefn('rgb2sim')};
@@ -231,8 +247,12 @@ export const OpponentCorrectionEffect = GObject.registerClass(
 
                         // line search for zero derivative of cost
                         vec3 sim_grad = rgb2sim * grad;
-                        float num = dot(opp_weights * sim_grad, rgb2sim * rgb - opp_ideal);
-                        float den = dot(opp_weights, sim_grad * sim_grad);
+                        float num =
+                            dot(rgb_weights, (rgb - c.rgb) * grad) +
+                            dot(opp_weights * sim_grad, rgb2sim * rgb - opp_ideal);
+                        float den =
+                            dot(rgb_weights, grad * grad) +
+                            dot(opp_weights, sim_grad * sim_grad);
 
                         // gradient descent
                         if (den == 0) {
