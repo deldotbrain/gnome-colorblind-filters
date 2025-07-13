@@ -145,7 +145,7 @@ worth it? You decide.
 These filters are still very much under development. I think they already look
 better than other filters, but there are still many improvements I'd like to
 make. Among other things, I'd like to significantly increase their maximum
-strength, fix the green tint and decrease of red and blue brightness that the
+strength, fix the green tint and decrease of red and green brightness that the
 tritanomaly filter causes, etc. If you've actually tried them, I want to know
 how they work for you! Open an issue to discuss, send me an email (the address
 on my commits works), or whatever.
