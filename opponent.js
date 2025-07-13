@@ -81,22 +81,22 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
     const sim_rgb2lms = whichCone == -1
         ? rgb2lms
-        : M.setCol3(rgb2lms, whichCone, [
+        : M.setRow3(rgb2lms, whichCone, [
             () => M.add3(
-                M.scale3(1 - factor, M.getCol3(rgb2lms, 0)),
-                M.scale3(factor * 0.96, M.getCol3(rgb2lms, 1))),
+                M.scale3(1 - factor, M.getRow3(rgb2lms, 0)),
+                M.scale3(factor * 0.96, M.getRow3(rgb2lms, 1))),
             () => M.add3(
-                M.scale3(factor, M.getCol3(rgb2lms, 0)),
-                M.scale3((1 - factor) / 0.96, M.getCol3(rgb2lms, 1))),
-            () => M.scale3(1 - factor, M.getCol3(rgb2lms, 2)),
+                M.scale3(factor, M.getRow3(rgb2lms, 0)),
+                M.scale3((1 - factor) / 0.96, M.getRow3(rgb2lms, 1))),
+            () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
         ][whichCone]());
 
-    // Use R+G+B for luminance; for tritanomaly, reduce B accordingly and spread
-    // the difference to R and G.
-    const rgb2opp = M.setRow3(M.mult3x3(lms2opp, sim_rgb2lms), 0,
-        whichCone == 2
-            ? [1 + factor / 2, 1 + factor / 2, 1 - factor]
-            : [1, 1, 1]);
+    // Use L+M+S for luminance. With factor = 0, rgb2lms is normalized so that
+    // this is equivalent to R+G+B, but this allows the simulated change in
+    // sensitivity to be applied to luminance as well.
+    const rgb2opp = M.mult3x3(
+        M.setRow3(lms2opp, 0, [1,1,1]),
+        sim_rgb2lms);
 
     // Scale rows so that each opponent component has a range of 1
     const r2o_scaled = M.mult3x3(
