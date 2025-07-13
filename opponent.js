@@ -81,53 +81,41 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
     const sim_rgb2lms = whichCone == -1
         ? rgb2lms
-        : M.setRow3(rgb2lms, whichCone, [
+        : M.setCol3(rgb2lms, whichCone, [
             () => M.add3(
-                M.scale3(1 - factor, M.getRow3(rgb2lms, 0)),
-                M.scale3(factor * 0.96, M.getRow3(rgb2lms, 1))),
+                M.scale3(1 - factor, M.getCol3(rgb2lms, 0)),
+                M.scale3(factor * 0.96, M.getCol3(rgb2lms, 1))),
             () => M.add3(
-                M.scale3(factor, M.getRow3(rgb2lms, 0)),
-                M.scale3((1 - factor) / 0.96, M.getRow3(rgb2lms, 1))),
-            () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
+                M.scale3(factor, M.getCol3(rgb2lms, 0)),
+                M.scale3((1 - factor) / 0.96, M.getCol3(rgb2lms, 1))),
+            () => M.scale3(1 - factor, M.getCol3(rgb2lms, 2)),
         ][whichCone]());
 
-    // rgb2opp is lms2opp * rgb2lms, but with additional normalization. NB:
-    // rgb2lms is normalized so that if R=G=B, L=M=S.
-    //
-    // Luminance is scaled so that it sums to 1.0 regardless of factor, but uses
-    // the simulated balance of sensitivities in sim_rgb2lms.
-    //
-    // Chroma is scaled such that if factor were set to zero, the absolute
-    // values of each element would sum to 1.0, i.e. so that each chroma
-    // component has a nominal range of 1.0. This must be affected by factor,
-    // the whole point is to correct differences in color sensitivity!
-    //
-    // This scaling is important: if a component's range wasn't 1.0, it would
-    // change its effective weight in the cost function.
-    const condition_l2o = (row, ref = row) => {
-        const scale = 1 / ref.reduce((a, v) => a + Math.abs(v), 0);
-        return M.scale3(scale, row);
-    };
-    const norm_lms2opp = M.fromRows(
-        condition_l2o([1, 1, 1], M.multiplyMatrixVec(sim_rgb2lms, [1, 1, 1])),
-        condition_l2o(M.getRow3(lms2opp, 1)),
-        condition_l2o(M.getRow3(lms2opp, 2)),
-    );
+    // Use R+G+B for luminance; for tritanomaly, reduce B accordingly and spread
+    // the difference to R and G.
+    const rgb2opp = M.setRow3(M.mult3x3(lms2opp, sim_rgb2lms), 0,
+        whichCone == 2
+            ? [1 + factor / 2, 1 + factor / 2, 1 - factor]
+            : [1, 1, 1]);
 
-    const rgb2opp = M.mult3x3(norm_lms2opp, sim_rgb2lms);
+    // Scale rows so that each opponent component has a range of 1
+    const r2o_scaled = M.mult3x3(
+        M.diagonal(M.gen3((i) =>
+            1 / M.getRow3(rgb2opp, i).reduce((a, v) => a + Math.abs(v), 0))),
+        rgb2opp);
 
     // Offset luma rows so that luma components are 0 for R=G=B (i.e. grays).
     // This prevents the incorrect and colorful "correction" of grays. This
     // feels weird because it changes the ratio of the components, but only
     // the absolute difference between them matters.
-    const condition_r2o = (row) => {
+    const condition = (row) => {
         const offset = -(row[0] + row[1] + row[2]) / 3;
         return M.gen3((i) => row[i] + offset);
     }
     return M.fromRows(
-        M.getRow3(rgb2opp, 0),
-        condition_r2o(M.getRow3(rgb2opp, 1)),
-        condition_r2o(M.getRow3(rgb2opp, 2)));
+        M.getRow3(r2o_scaled, 0),
+        condition(M.getRow3(r2o_scaled, 1)),
+        condition(M.getRow3(r2o_scaled, 2)));
 }
 
 // Helpers for getting matrix data into shader uniforms. Clutter has aggregate
