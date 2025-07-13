@@ -50,6 +50,7 @@ const rgb2lms = [
     0.87256922462,
 ];
 
+// Convert L, M, S into V, R-G, Y-B (green, blue positive)
 const lms2opp = useWandell
     // From Wandell
     ? [
@@ -66,14 +67,14 @@ const lms2opp = useWandell
     // Machado et al. cite Ingling and Tsou with a different transform:
     : [
         0.600,
-        0.240,
-        1.200,
+        -1.200,
+        -0.240,
         0.400,
-        0.105,
-        -1.600,
+        1.600,
+        -0.105,
         0.000,
-        -0.700,
-        0.400
+        -0.400,
+        0.700
     ];
 
 function getRGB2Opp(whichCone = -1, factor = 0) {
