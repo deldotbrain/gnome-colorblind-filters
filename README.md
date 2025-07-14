@@ -1,14 +1,14 @@
-# Colorblind Filters
+# Colorblind Filters Advanced
 A GNOME Shell extension for main panel that offers full-screen color filters
 that should help color blind users and developers.
 
 This version was forked from [the original on
-GitHub](https://github.com/G-dH/gnome-colorblind-filters) to replace its
-daltonization algorithm with the one used by Android devices, which I find more
-helpful. Since then, I've also used it to experiment with a number of changes
-to the algorithm and with new algorithms, and I'm very happy with the results.
-I've kept older, worse filters in the extension to prove to myself that my
-changes have been an improvement.
+GitHub](https://github.com/G-dH/gnome-colorblind-filters) to explore other
+filter algorithms. Originally, the algorithm used by Android devices was used,
+but I've continued to experiment with changes to the algorithm and entirely new
+filters. I'm happy with the gradual improvements I've made, but I've also kept
+the older, worse filters in the extension to prove to myself that my changes
+have been an improvement.
 
 ## Screenshot
 
@@ -18,16 +18,21 @@ Yes, there are too many filters. No, I won't remove any.
 
 ## Installation
 
+Should support GNOME Shell 45 - 48, but I don't test against older versions.
+
+To install, fetch the source and run `make install`:
+
     git clone https://codeberg.org/amyp/gnome-colorblind-filters.git
     cd gnome-colorblind-filters
     make install
 
-Supports GNOME Shell 45 - 48, but I don't test against older versions.
+Then, either reload GNOME Shell (X11 only; press Alt+F2 and enter "r") or log
+out and back in (X11 and Wayland) to load the extension.
 
 ## "Quick" Start
 
 At this point, this extension has entirely too many filter options to choose
-from (28 at the time of writing!), and choosing is probably overwhelming. If
+from (31 at the time of writing!), and choosing is probably overwhelming. If
 you want to correct for color blindness:
 
 1. For mild to moderate prot/deuter/tritanomaly, try the "OCS" filters first.
@@ -48,6 +53,37 @@ If you want to simulate color blindness, use the "HPE" filters. Again, the
 "AOSP" filters only exist to demonstrate an Android bug. I suspect that the
 "Modified Tritanopia Correction (HPE)" filter is more accurate than its
 un-"Modified" version, but I have no real evidence for that claim.
+
+## Other Setup Instructions
+
+### Filtering Fullscreen Applications
+
+These filters are used by GNOME's compositor, but it typically doesn't run for
+fullscreen applications (games, movies, etc.) for performance reasons. To make
+these filters work in fullscreen windows, you need one of the following
+extensions:
+
+- https://extensions.gnome.org/extension/1873/disable-unredirect-fullscreen-windows/
+  (at time of writing, this extension doesn't support GNOME 48)
+- https://extensions.gnome.org/extension/8008/disable-unredirect/ (at time of
+  writing, only GNOME 48 is supported)
+
+### Configuring Hotkeys
+
+This extension doesn't directly support adding hotkeys, but it's still possible
+to set them up.
+
+This extension responds immediately to dconf settings changes. Its settings can
+be found in `/org/gnome/shell/extensions/colorblind-filters-advanced`. You can
+set a custom shortcut in GNOME's keyboard settings to run `dconf` to modify
+those settings. For example, I have Super+F7 and Super+F8 set to turn the
+filter off and on by running
+
+    dconf write /org/gnome/shell/extensions/colorblind-filters-advanced/filter-active false
+
+and
+
+    dconf write /org/gnome/shell/extensions/colorblind-filters-advanced/filter-active true
 
 ## Filter Descriptions
 

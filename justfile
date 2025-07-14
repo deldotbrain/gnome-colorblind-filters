@@ -1,5 +1,5 @@
 suffix := 'dev'
-package := 'colorblind-filters-aosp-' + suffix + '@amyp.codeberg.org'
+package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
 
 zip: (make 'zip')
 

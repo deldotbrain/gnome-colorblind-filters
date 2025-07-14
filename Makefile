@@ -1,5 +1,5 @@
 # Replace these with the name and domain of your extension!
-NAME ?= colorblind-filters-aosp
+NAME ?= colorblind-filters-advanced
 DOMAIN ?= amyp.codeberg.org
 
 # Set to e.g. dev to change UUID, settings location, etc. for testing
