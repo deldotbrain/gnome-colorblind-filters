@@ -127,3 +127,63 @@ export function mult3x3(a, b) {
 export function scale3x3(s, mat) {
     return mat.map((x) => x * s);
 }
+
+// *Sigh* I didn't want to have write any non-trivial matrix functions.
+export function inverse3x3(mat) {
+    const work = Array.from(mat);
+    const ret = identity3x3();
+    const idx = (r, c) => c * 3 + r;
+
+    for (let col = 0; col < 3; col++) {
+        // Pick the row with the greatest pivot
+        let max_row = col;
+        for (let row = col + 1; row < 3; row++) {
+            if (Math.abs(work[idx(row, col)]) > Math.abs(work[idx(max_row, col)])) {
+                max_row = row;
+            }
+        }
+        if (work[idx(max_row, col)] == 0) { return null; }
+
+        // scale the rest of the row in the work matrix as if the pivot had been
+        // scaled to 1; scale the whole return matrix row
+        const scale = 1 / work[idx(max_row, col)];
+        for (let c = col + 1; c < 3; c++) {
+            work[idx(max_row, c)] *= scale;
+        }
+        for (let c = 0; c < 3; c++) {
+            ret[idx(max_row, c)] *= scale;
+        }
+
+        // Swap the rest of the row in the work matrix into place; swap the
+        // whole return matrix row
+        //
+        // NB: can't skip swapping the current column, it's used for elimination
+        // below
+        for (let c = col; c < 3; c++) {
+            const wtmp = work[idx(max_row, c)];
+            work[idx(max_row, c)] = work[idx(col, c)];
+            work[idx(col, c)] = wtmp;
+        }
+        for (let c = 0; c < 3; c++) {
+            const rtmp = ret[idx(max_row, c)];
+            ret[idx(max_row, c)] = ret[idx(col, c)];
+            ret[idx(col, c)] = rtmp;
+        }
+
+        // Subtract from the other rows
+        for (let r = 0; r < 3; r++) {
+            if (r == col) { continue; }
+            const scale = work[idx(r, col)];
+            // As usual: only update the work columns to the right, but update
+            // all return matrix columns
+            for (let c = col + 1; c < 3; c++) {
+                work[idx(r, c)] -= scale * work[idx(col, c)];
+            }
+            for (let c = 0; c < 3; c++) {
+                ret[idx(r, c)] -= scale * ret[idx(col, c)];
+            }
+        }
+    }
+
+    return ret;
+}

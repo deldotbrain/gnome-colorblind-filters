@@ -95,7 +95,7 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // this is equivalent to R+G+B, but this allows the simulated change in
     // sensitivity to be applied to luminance as well.
     const rgb2opp = M.mult3x3(
-        M.setRow3(lms2opp, 0, [1,1,1]),
+        M.setRow3(lms2opp, 0, [1, 1, 1]),
         sim_rgb2lms);
 
     // Scale rows so that each opponent component has a range of 1
@@ -266,5 +266,46 @@ export const OpponentCorrectionEffect = GObject.registerClass(
                     cogl_color_out = vec4(rgb, c.a);
                 }
                 `;
+        }
+    });
+
+export const OpponentSimulationEffect = GObject.registerClass(
+    class OpponentSimulationEffect extends Clutter.ShaderEffect {
+        _init(properties) {
+            super._init();
+
+            this.set_shader_source(OpponentSimulationEffect.getSource());
+            this.set_uniform_value('tex', 0);
+
+            this.updateEffect(properties);
+        }
+
+        updateEffect(properties) {
+            const { whichCone, factor } = properties;
+
+            const rgb2ideal = getRGB2Opp();
+            const rgb2sim = getRGB2Opp(whichCone, factor);
+
+            updateUniform(this, 'adjustment',
+                M.mult3x3(
+                    M.inverse3x3(rgb2ideal),
+                    rgb2sim));
+        }
+
+        vfunc_get_static_shader_source() {
+            return OpponentSimulationEffect.getSource();
+        }
+
+        // FIXME: This is effectively the same code as DaltonismEffect. Share it.
+        static getSource() {
+            return `
+                uniform sampler2D tex;
+                ${uniformDecl('adjustment')};
+
+                void main() {
+                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
+                    cogl_color_out = vec4(${uniformUse('adjustment')} * c.rgb, c.a);
+                }
+            `;
         }
     });

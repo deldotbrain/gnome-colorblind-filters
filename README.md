@@ -125,13 +125,13 @@ to simulate color blindness. While their proposed simulation isn't considered
 to be as accurate as others, its use of opponent color makes a very different
 correction approach possible.
 
-These filters search RGB space for a color which the colorblind observer is
-expected to perceive as the original color was intended. To do this, they
-define a cost function to describe the "badness" of a chosen color based on its
-distance from the intended color in simulated opponent-color space and from the
-original color in RGB space. They search near the original color using a couple
-iterations of gradient descent to find an RGB value with minimal cost and
-display it.
+The correction filters search RGB space for a color which the colorblind
+observer is expected to perceive as the original color was intended. To do
+this, they define a cost function to describe the "badness" of a chosen color
+based on its distance from the intended color in simulated opponent-color space
+and from the original color in RGB space. They search near the original color
+using a couple iterations of gradient descent to find an RGB value with minimal
+cost and display it.
 
 This approach is necessarily much more expensive than other filters (probably
 by a factor of 20-30, though it still doesn't add up to much actual
@@ -142,13 +142,24 @@ daltonization, and daltonization (and linear filters more generally)
 fundamentally cannot make the same modifications that this filter does. Is it
 worth it? You decide.
 
-These filters are still very much under development. I think they already look
-better than other filters, but there are still many improvements I'd like to
-make. Among other things, I'd like to significantly increase their maximum
-strength, fix the green tint and decrease of red and green brightness that the
-tritanomaly filter causes, etc. If you've actually tried them, I want to know
-how they work for you! Open an issue to discuss, send me an email (the address
-on my commits works), or whatever.
+The simulation filters apply a trivial linear transformation (inverse of ideal
+RGB-to-opponent transform multiplied by simulated RGB-to-opponent transform).
+They don't do any fancy cost function optimization on the assumption that color
+blindness only ever reduces the gamut, so the result of a linear transformation
+will always be within the RGB gamut. These filters aren't (currently) terribly
+accurate, but they provide valuable insight into how the OCS filters understand
+color blindness and what they're actually trying to correct for. Note that
+although much of the approach used by these filters is similar to the work of
+Machado et al., they are **not** the same simulation and shouldn't be taken as
+a representation of their work!
+
+These filters are still very much under development. I think the correction
+filters already look better than other filters, but there are still many
+improvements I'd like to make. Among other things, I'd like to significantly
+increase their maximum strength, fix the green tint and decrease of red and
+green brightness that the tritanomaly filter causes, etc. If you've actually
+tried them, I want to know how they work for you! Open an issue to discuss,
+send me an email (the address on my commits works), or whatever.
 
 Named for being Opponent Color Solvers.
 

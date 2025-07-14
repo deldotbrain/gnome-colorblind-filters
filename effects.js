@@ -144,7 +144,40 @@ function getColorblindEffects(mode) {
         },
     ];
 
-    return (isCorrection ? opponentCorrections : []).concat(
+    const opponentSimulations = [
+        {
+            description: "Protanomaly Simulation (OCS)",
+            name: "SimProtOC",
+            shortName: "SPOC",
+            properties: {
+                whichCone: 0,
+                factor: 1
+            },
+            shader: Opponent.OpponentSimulationEffect,
+        },
+        {
+            description: "Deuteranomaly Simulation (OCS)",
+            name: "SimDeuterOC",
+            shortName: "SDOC",
+            properties: {
+                whichCone: 1,
+                factor: 1
+            },
+            shader: Opponent.OpponentSimulationEffect,
+        },
+        {
+            description: "Tritanomaly Simulation (OCS)",
+            name: "SimTritOC",
+            shortName: "STOC",
+            properties: {
+                whichCone: 2,
+                factor: 1
+            },
+            shader: Opponent.OpponentSimulationEffect,
+        },
+    ];
+
+    return (isCorrection ? opponentCorrections : opponentSimulations).concat(
         transforms.flatMap((x) => types.map((t) => ({
             description: `${t.longName} ${mode.name} (${x.name})`,
             name: `${t.name}${mode.name}${x.name}`,
