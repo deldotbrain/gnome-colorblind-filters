@@ -237,6 +237,8 @@ class FilterConfigMenu {
             menu_item.add_child(construct(St.Label, { text: _('Filter Strength') }));
             menu_item.add_child(strength_slider);
             menu.addMenuItem(menu_item);
+
+            this.strength_slider = menu_item;
         }
 
         const get_variants = group => {
@@ -294,6 +296,7 @@ class FilterConfigMenu {
         this.settings = null;
         this.submenus = {};
         this.tritan_hack_switch = null;
+        this.strength_slider = null;
         this.thing_destroyer_9000.destroy();
     }
 
@@ -340,6 +343,10 @@ class FilterConfigMenu {
                     ? PopupMenu.Ornament.CHECK
                     : PopupMenu.Ornament.NONE));
         };
+
+        if (this.strength_slider) {
+            this.strength_slider.visible = validated.algorithm.usesFactor;
+        }
 
         set_checked(s.modes, validated.mode);
 
