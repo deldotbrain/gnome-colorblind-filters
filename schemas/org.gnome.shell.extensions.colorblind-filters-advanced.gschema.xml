@@ -5,7 +5,7 @@
             <default>false</default>
         </key>
         <key type="s" name="filter-name">
-            <default>'DeuterOC'</default>
+            <default>'correction-ocs-deuteranopia'</default>
         </key>
         <key type="d" name="filter-strength">
             <default>0.5</default>

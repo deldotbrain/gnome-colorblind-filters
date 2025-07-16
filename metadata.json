@@ -1,6 +1,6 @@
 {
-  "description": "This extension is primarily an ad hoc research project to evaluate improvements to color blindness correction filters, but it provides color blindness simulation filters and other effects as well.\n\nThis extension adds a menu to the system status area in the top-right of the screen. Right-clicking the icon opens its configuration menu with options for filter selection and filter strength. Left-clicking the icon toggles the selected filter on and off. Middle-clicking the icon toggles between the current and previously-selected filter. Scrolling the icon switches between filters.\n\nMany correction filter implementations are included for comparison, but not all are well-suited for daily use. Since the implementation is usually very similar, most of the correction filters have a corresponding color blindness simulation filter included as well. See the extension's homepage for details of each of the filters. In general, the most preferred filters are listed first in the extension's menu.",
-  "gettext-domain": "colorblind-filters",
+  "description": "Adds color blindness correction/simulation filters to the quick settings menu.\nA variety of filters are available for correcting or simulating color blindness. See the extension's homepage for more details. Please report issues there if you have any trouble!\n\nThis extension was forked from GdH's Colorblind Filters extension.",
+  "gettext-domain": "colorblind-filters-advanced",
   "name": "Colorblind Filters Advanced",
   "settings-schema": "org.gnome.shell.extensions.colorblind-filters-advanced",
   "shell-version": [
@@ -10,6 +10,5 @@
     "48"
   ],
   "url": "https://codeberg.org/amyp/gnome-colorblind-filters",
-  "uuid": "colorblind-filters-advanced@amyp.codeberg.org",
-  "version-name": "48.0"
+  "uuid": "colorblind-filters-advanced@amyp.codeberg.org"
 }

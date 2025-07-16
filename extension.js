@@ -2,260 +2,377 @@
  * ColorBlind Filters
  * extension.js
  *
- * @author     GdH <G-dH@github.com>
- * @copyright  2022-2024
+ * @author     A. Pennucci <apennucci@protonmail.com>
+ * @copyright  2025
  * @license    GPL-3.0
  */
 'use strict';
 
-import GLib from 'gi://GLib';
-import Clutter from 'gi://Clutter';
-import St from 'gi://St';
-import GObject from 'gi://GObject';
-import Gio from 'gi://Gio';
-
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
+// FIXME: clean up metadata json; does version-name do anything?
+// FIXME: enable/disable leaks memory, but that might be unavoidable when doing
+// Quick Settings things? The QS example code on gjs.guide leaks, too.
+// ...oh what the absolute fuck? apparently it's considered correct that JS objects leak their reference if .destroy() isn't manually called????
+// TODO: verify that separate this.getSettings() helps limit leaks and/or works for different lifecycles
+// FIXME: I'd really prefer that the menu not collapse after every action
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import GObject from 'gi://GObject';
+import St from 'gi://St';
+import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
+import { Slider } from 'resource:///org/gnome/shell/ui/slider.js';
 
-import * as Effects from './effects.js';
+import {
+    Filter, FilterMode, EffectAlgorithm, ColorBlindnessType,
+    ColorBlindnessAlgorithm, TritanHackEnable,
+    get_algorithms, tritan_hack_allowed
+} from './filter.js';
 
-const PANEL_ICON_SIZE = 18; // default +2 looks better
-let _;
+function connect_setting_eager(settings, type_name, name, callback) {
+    const getter = Gio.Settings.prototype['get_' + type_name];
+    settings.connect('changed::' + name, (s, k) => callback(getter.call(s, k)));
+    callback(getter.call(settings, name));
+}
 
-export default class CBFilters extends Extension {
+export default class ColorblindFilters extends Extension {
     enable() {
-        _ = this.gettext.bind(this);
-        this._menu = new MenuButton(this);
-        Main.panel.addToStatusArea(this.metadata.name, this._menu, 0, 'right');
+        const _ = this.gettext.bind(this);
+        const settings = this.getSettings();
+
+        this.manager = new FilterManager(this.metadata.name, settings);
+
+        this.indicator = new FilterIndicator(settings);
+        this.indicator.attach(new FilterQuickSettingsMenu(_, settings));
+        this.indicator.register();
     }
 
     disable() {
-        this._menu.destroy();
-        this._menu = null;
-        _ = null;
+        this.manager?.destroy();
+        this.manager = null;
+
+        this.indicator?.destroy();
+        this.indicator = null;
     }
 }
 
-const MenuButton = GObject.registerClass(
-    class MenuButton extends PanelMenu.Button {
-        _init(me) {
-            super._init(0.5, 'ColorblindMenu', false);
-            this._name = me.metadata.name;
-            const settings = me.getSettings();
-            this._settings = settings;
+class FilterManager {
+    constructor(effect_name, settings) {
+        this.effect_name = effect_name;
+        this.settings = settings;
 
-            const bin = new St.BoxLayout();
-            const panelLabel = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
+        this.effect_cache = new Map();
 
-            bin.add_child(panelLabel);
-            this.add_child(bin);
+        this.filter = null;
+        this.configured_filter = null;
 
-            this._panelLabel = panelLabel;
-            this._panelBin = bin;
+        settings.connect('changed::filter-active', this.update_filter.bind(this));
+        settings.get_boolean('filter-active');
+        settings.connect('changed::filter-strength', this.update_filter.bind(this));
+        settings.get_double('filter-strength');
+        connect_setting_eager(settings, 'string', 'filter-name',
+            (cfg) => {
+                this.configured_filter = Filter.fromString(cfg);
+                this.update_filter();
+            });
+    }
 
-            const switchOff = new PopupMenu.PopupSwitchMenuItem('', false);
-            this._switch = switchOff;
-            this._activeLabel = switchOff.label;
+    destroy() {
+        this.settings = null;
 
-            const strengthSlider = new Slider.Slider(0);
-            const sliderMenuItem = new PopupMenu.PopupBaseMenuItem();
-            sliderMenuItem._slider = true;
-            const label = new St.Label({ text: _('Strength:') });
-            sliderMenuItem.add_child(label);
-            sliderMenuItem.add_child(strengthSlider);
-            this._strengthSlider = strengthSlider;
+        if (this.filter !== null) {
+            Main.uiGroup.remove_effect_by_name(this.effect_name);
+        }
+    }
 
-            this._menuItems = [];
-            const effects = Effects.getEffectGroups();
-            const addEffectsToMenu = (effects, menu) => {
-                for (const e of effects) {
-                    const item = new PopupMenu.PopupMenuItem(_(e.description));
-                    item.setOrnament(PopupMenu.Ornament.NONE);
-                    item.connect('activate', () => settings.set_string('filter-name', e.name));
-                    item._effect = e;
-                    item._submenu = menu;
-                    this._menuItems.push(item);
-                    menu.menu.addMenuItem(item);
-                }
-            };
+    update_filter() {
+        const configured = this.settings.get_boolean('filter-active')
+            ? this.configured_filter : null;
 
-            const correctionsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Corrections'));
-            addEffectsToMenu(effects.corrections, correctionsExpander);
+        const enabled = configured !== null;
+        const changed_effect = this.filter?.effect !== configured?.effect
 
-            const simulationsExpander = new PopupMenu.PopupSubMenuMenuItem(_('Color Blindness - Simulations'));
-            addEffectsToMenu(effects.simulations, simulationsExpander);
+        if (changed_effect) {
+            Main.uiGroup.remove_effect_by_name(this.effect_name);
+        }
 
-            const otherExpander = new PopupMenu.PopupSubMenuMenuItem(_('Other Effects'));
-            addEffectsToMenu(effects.others, otherExpander);
+        if (enabled) {
+            configured.factor = this.settings.get_double('filter-strength');
 
-            this.menu.addMenuItem(switchOff);
-            this.menu.addMenuItem(sliderMenuItem);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addMenuItem(correctionsExpander);
-            this.menu.addMenuItem(simulationsExpander);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addMenuItem(otherExpander);
+            const effect = this.get_effect(configured);
+            if (changed_effect) {
+                Main.uiGroup.add_effect_with_name(this.effect_name, effect);
+            }
+        }
 
-            this.menu.connect('open-state-changed', (_menu, opened) => {
-                if (opened && this._selectedItem) {
-                    this._selectedItem._submenu.setSubmenuShown(true);
-                }
+        if (enabled || changed_effect) {
+            Main.uiGroup.queue_redraw();
+        }
+
+        this.filter = configured;
+    }
+
+    get_effect(filter) {
+        const effect_type = filter.effect;
+
+        // Avoid a warning from GNOME Shell about creating an excessive
+        // number of shaders by caching them.
+        const cached = this.effect_cache.get(effect_type);
+        if (cached !== undefined) {
+            cached.updateEffect(filter.properties);
+            return cached;
+        } else {
+            const effect = new effect_type(filter.properties);
+            this.effect_cache.set(effect_type, effect);
+            return effect;
+        }
+    }
+}
+
+function pick_icon(enabled) {
+    return `view-${enabled ? 'reveal' : 'conceal'}-symbolic`;
+}
+
+const FilterIndicator = GObject.registerClass(
+    class FilterIndicator extends QuickSettings.SystemIndicator {
+        _init(settings) {
+            super._init();
+
+            this.settings = settings;
+            this.indicator = this._addIndicator();
+            connect_setting_eager(settings, 'boolean', 'filter-active', (active) => {
+                this.indicator.icon_name = pick_icon(active);
             });
 
-            settings.connect('changed::filter-name', (s, k) => this._setEffect(s.get_string(k)));
-            this._curEffect = settings.get_string('filter-name');
-            this._setEffect(this._curEffect);
-
-            strengthSlider.connect('notify::value', () => this._setStrength(strengthSlider.value));
-            settings.bind('filter-strength', strengthSlider, 'value', 0);
-
-            switchOff.connect('notify::state', () => this._setEnabled(this._switch.state));
-            settings.bind('filter-active', this._switch, 'state', 0);
+            this.indicator.visible = true;
         }
 
         destroy() {
-            if (this._shader) {
-                Main.uiGroup.remove_effect_by_name(this._name);
-            }
-
-            if (this._labelTimeoutId) {
-                GLib.source_remove(this._labelTimeoutId);
-            }
-
+            this.settings = null;
+            this.quickSettingsItems.forEach((i) => i.destroy());
+            this.quickSettingsItems = [];
             super.destroy();
         }
 
-        _setSelected(item) {
-            if (this._selectedItem) {
-                this._selectedItem.setOrnament(PopupMenu.Ornament.NONE);
-            }
-
-            item.setOrnament(PopupMenu.Ornament.DOT);
-
-            const effect = item._effect;
-            this._strengthSlider.visible = effect.properties.factor !== undefined;
-            this._activeLabel.text = effect.description;
-
-            this._changeEffect(item);
+        attach(item) {
+            this.quickSettingsItems.push(item);
         }
 
-        _setEffect(effectName) {
-            this._lastEffect = this._curEffect;
-            this._lastFactor = this._strengthSlider.value;
-            this._curEffect = effectName;
-            const selectedItem = this._menuItems.find((i) => i._effect.name == effectName);
-            this._setSelected(selectedItem, false);
-        };
-
-        _setEnabled(enabled) {
-            if (this._panelIcon) {
-                this._panelBin.remove_child(this._panelIcon);
-                this._panelIcon.destroy();
-            }
-
-            const iconName = enabled ? 'reveal' : 'conceal';
-            const gicon = Gio.icon_new_for_string(`view-${iconName}-symbolic`);
-            this._panelIcon = new St.Icon({ gicon, icon_size: PANEL_ICON_SIZE });
-            this._panelBin.add_child(this._panelIcon);
-
-            this._changeEffect();
-        }
-
-        _setStrength(_strength) {
-            this._changeEffect();
-        }
-
-        _changeEffect(newItem = this._selectedItem) {
-            const oldShader = this._shader ? this._selectedItem._effect.shader : null;
-            const newShader = this._switch.state ? newItem._effect.shader : null;
-            this._selectedItem = newItem;
-            const newEffect = newItem._effect;
-
-            if (oldShader !== null && oldShader !== newShader) {
-                Main.uiGroup.remove_effect_by_name(this._name);
-                this._shader = null;
-            }
-            if (newShader !== null) {
-                if (newEffect.properties.factor !== undefined) {
-                    newEffect.properties.factor = this._strengthSlider.value;
-                }
-                if (oldShader != newShader) {
-                    this._shader = Effects.makeShader(newEffect);
-                    Main.uiGroup.add_effect_with_name(this._name, this._shader);
-                } else {
-                    this._shader.updateEffect(newEffect.properties);
-                }
-                Main.uiGroup.queue_redraw();
-            }
-        }
-
-        vfunc_event(event) {
-            if (event.type() === Clutter.EventType.BUTTON_RELEASE)
-                return Clutter.EVENT_PROPAGATE;
-
-            // scrolling over panel btn switches between all cb correction filters except inversions
-            if (this._switch.state && event.type() === Clutter.EventType.SCROLL) {
-                const direction = event.get_scroll_direction();
-
-                if (direction === Clutter.ScrollDirection.SMOOTH)
-                    return Clutter.EVENT_STOP;
-
-                const numItems = this._menuItems.length;
-                const step = direction === Clutter.ScrollDirection.UP ? numItems - 2 : 1;
-                const index = (this._menuItems.indexOf(this._selectedItem) + step) % (numItems - 1);
-                const item = this._menuItems[index];
-                this._settings.set_string('filter-name', item._effect.name);
-                this._setPanelLabel(item._effect.shortName);
-
-                return Clutter.EVENT_STOP;
-            }
-
-            if (event.type() === Clutter.EventType.BUTTON_PRESS && (event.get_button() === Clutter.BUTTON_PRIMARY)) {
-                this._switch.toggle();
-                return Clutter.EVENT_STOP;
-            } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_SECONDARY)) {
-                this.menu.toggle();
-                return Clutter.EVENT_STOP;
-            } else if (event.type() === Clutter.EventType.TOUCH_BEGIN || (event.type() === Clutter.EventType.BUTTON_PRESS && event.get_button() === Clutter.BUTTON_MIDDLE)) {
-                const oldFactor = this._strengthSlider.value;
-                this._strengthSlider.value = this._lastFactor;
-                this._setEffect(this._lastEffect);
-                this._lastFactor = oldFactor;
-                return Clutter.EVENT_STOP;
-            }
-
-            return Clutter.EVENT_PROPAGATE;
-        }
-
-        _setPanelLabel(label) {
-            if (label != '') {
-                this._panelLabel.text = label;
-                this._panelBin.set_style('spacing: 3px;');
-                this._resetLabelTimeout();
-            } else {
-                this._panelBin.set_style('spacing: 0;');
-                this._panelLabel.text = '';
-            }
-        }
-
-        _resetLabelTimeout() {
-            if (this._labelTimeoutId)
-                GLib.source_remove(this._labelTimeoutId);
-
-            this._labelTimeoutId = GLib.timeout_add_seconds(
-                GLib.PRIORITY_DEFAULT,
-                2,
-                () => {
-                    this._setPanelLabel('');
-
-                    this._labelTimeoutId = 0;
-                    return GLib.SOURCE_REMOVE;
-                }
-            );
+        register() {
+            Main.panel.statusArea.quickSettings.addExternalIndicator(this);
         }
     });
+
+function get_label_for_filter(filter, _) {
+    return filter
+        ? filter.mode.isColorBlindness
+            ? filter.color_blindness_type.name(_)
+            : filter.algorithm.name(_)
+        : '';
+}
+
+// At one point, I was going to have a toggle to display a slider instead of a
+// toggle, so I made all the menu logic reusable. As it turns out, QuickSlider
+// was not able to do what I wanted, so I decided against it (/diplomatic).
+const FilterQuickSettingsMenu = GObject.registerClass(
+    class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
+        _init(_, settings) {
+            super._init({
+                toggleMode: true,
+            });
+
+            this.gettext = _;
+            this.settings = settings;
+
+            this.title = _('Colorblind Filters');
+
+            connect_setting_eager(settings, 'boolean', 'filter-active',
+                this.update_enabled.bind(this));
+            connect_setting_eager(settings, 'string', 'filter-name',
+                this.update_effect_name.bind(this));
+            settings.bind('filter-active', this, 'checked', 0);
+
+            this.config_menu = new FilterConfigMenu(_, settings, this.menu, false, true);
+        }
+
+        destroy() {
+            this.settings = null;
+            this.config_menu?.destroy();
+            super.destroy();
+        }
+
+        update_effect_name(cfg_string) {
+            const filter = Filter.fromString(cfg_string);
+            this.subtitle = get_label_for_filter(filter, this.gettext);
+        }
+
+        update_enabled(enable) {
+            const icon = pick_icon(enable);
+            this.icon_name = icon;
+            this.menu.setHeader(icon, this.title);
+        }
+    });
+
+class FilterConfigMenu {
+    constructor(_, settings, menu, with_toggle, with_slider) {
+        this.gettext = _;
+        this.settings = settings;
+
+        // Whatever settings were most recently configured, either by menu or by
+        // external process. No-longer-valid settings are kept in case they
+        // become relevant again in the future.
+        this.filter_config = {
+            mode: null,
+            color_blindness_type: null,
+            cb_alg: null,
+            eff_alg: null,
+            tritan_hack: null,
+        };
+
+        if (with_toggle) {
+            const enable_switch = new PopupMenu.PopupSwitchMenuItem(_('Enable Filter'), false);
+            settings.bind('filter-active', enable_switch, 'state', 0);
+            menu.addMenuItem(enable_switch);
+        }
+
+        if (with_slider) {
+            const menu_item = new PopupMenu.PopupBaseMenuItem();
+            const strength_slider = new Slider(0);
+            settings.bind('filter-strength', strength_slider, 'value', 0);
+
+            menu_item.add_child(new St.Label({ text: _('Filter Strength') }));
+            menu_item.add_child(strength_slider);
+            menu.addMenuItem(menu_item);
+        }
+
+        const get_variants = (group) => {
+            const ret = [];
+            for (const v in group) {
+                ret.push(group[v]);
+            }
+            return ret;
+        }
+        const make_submenu = (title, property, contents) => {
+            const submenu = new PopupMenu.PopupSubMenuMenuItem(title, false);
+            const items = {};
+
+            contents.forEach((c) => {
+                items[c.cfgString] = submenu.menu.addAction(c.name(_), () => {
+                    this.update_config(property, c);
+                });
+            });
+
+            menu.addMenuItem(submenu);
+
+            return { menu: submenu, items };
+        };
+
+        this.submenus = {
+            modes: make_submenu(_('Filter Modes'), 'mode', get_variants(FilterMode)),
+            cb_type: make_submenu(_('Color Blindness Types'), 'color_blindness_type',
+                get_variants(ColorBlindnessType)),
+            cb_alg: make_submenu(_('Filter Algorithms'), 'cb_alg',
+                get_variants(ColorBlindnessAlgorithm)),
+            eff_type: make_submenu(_('Other Effects'), 'eff_alg',
+                get_variants(EffectAlgorithm)),
+        };
+
+        this.tritan_hack_switch = new PopupMenu.PopupSwitchMenuItem(_('Use Alternate Transform'), false);
+        this.tritan_hack_switch.connect('notify::state', (s) => {
+            this.update_config('tritan_hack', s.state
+                ? TritanHackEnable.ENABLE
+                : TritanHackEnable.DISABLE);
+        });
+        menu.addMenuItem(this.tritan_hack_switch);
+
+        this.update_filter(new Filter());
+
+        connect_setting_eager(settings, 'string', 'filter-name', (cfg_string) => {
+            let filter = Filter.fromString(cfg_string);
+            if (filter !== null) {
+                this.update_filter(filter);
+            }
+        });
+    }
+
+    destroy() {
+        this.settings = null;
+        this.submenus = {};
+        this.tritan_hack_switch = null;
+    }
+
+    update_config(field, value) {
+        this.filter_config[field] = value;
+        this.update_menus();
+        this.emit_config();
+    }
+
+    update_filter(filter) {
+        const fc = this.filter_config;
+        fc.mode = filter.mode;
+        fc[filter.mode.isColorBlindness ? 'cb_alg' : 'eff_al'] = filter.algorithm;
+        if (filter.color_blindness_type) {
+            fc.color_blindness_type = filter.color_blindness_type;
+        }
+        if (filter.tritan_hack) {
+            fc.tritan_hack = filter.tritan_hack;
+        }
+
+        this.update_menus();
+    }
+
+    current_filter() {
+        const fc = this.filter_config;
+        return new Filter(
+            fc.mode,
+            fc.mode.isColorBlindness ? fc.cb_alg : fc.eff_alg,
+            fc.color_blindness_type,
+            fc.tritan_hack);
+    }
+
+    emit_config() {
+        this.settings.set_string('filter-name', this.current_filter().toString());
+    }
+
+    update_menus() {
+        const s = this.submenus;
+        const validated = this.current_filter();
+
+        const set_checked = (menu, selected) => {
+            Object.entries(menu.items).forEach(
+                ([name, item]) => item.setOrnament(name == selected.cfgString
+                    ? PopupMenu.Ornament.CHECK
+                    : PopupMenu.Ornament.NONE));
+        };
+
+        set_checked(s.modes, validated.mode);
+
+        if (!validated.mode.isColorBlindness) {
+            s.cb_type.menu.visible = false;
+            s.cb_alg.menu.visible = false;
+            s.eff_type.menu.visible = true;
+            this.tritan_hack_switch.visible = false;
+            set_checked(s.eff_type, validated.algorithm);
+            return;
+        }
+
+        s.cb_type.menu.visible = true;
+        s.cb_alg.menu.visible = true;
+        s.eff_type.menu.visible = false;
+
+        const allowed_algorithms = new Set(get_algorithms(validated.mode).map((a) => a.cfgString));
+        Object.entries(this.submenus.cb_alg.items).forEach(
+            ([name, item]) => item.visible = allowed_algorithms.has(name));
+
+        set_checked(s.cb_type, validated.color_blindness_type);
+        set_checked(s.cb_alg, validated.algorithm);
+
+        if (tritan_hack_allowed(validated.algorithm, validated.color_blindness_type)) {
+            this.tritan_hack_switch.visible = true;
+            this.tritan_hack_switch.state = validated.tritan_hack === TritanHackEnable.ENABLE;
+        } else {
+            this.tritan_hack_switch.visible = false;
+        }
+    }
+}
