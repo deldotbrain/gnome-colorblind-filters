@@ -1,22 +1,22 @@
 # Colorblind Filters Advanced
-A GNOME Shell extension for main panel that offers full-screen color filters
-that should help color blind users and developers.
+A GNOME Shell extension that adds a Quick Settings menu for full-screen color
+filters that should help colorblind users and developers.
 
-This version was forked from [the original on
-GitHub](https://github.com/G-dH/gnome-colorblind-filters) to explore other
-filter algorithms. Originally, the algorithm used by Android devices was used,
-but I've continued to experiment with changes to the algorithm and entirely new
-filters. I'm happy with the gradual improvements I've made, but I've also kept
-the older, worse filters in the extension to prove to myself that my changes
-have been an improvement.
+This extension was forked from [the original on
+GitHub](https://github.com/G-dH/gnome-colorblind-filters). It has different
+filter options and a different user interface.
+
+Originally, this extension use the algorithms used by Android devices to
+simulate and correct color blindness, but I've continued to experiment with
+changes to the algorithm and entirely new filters. I'm happy with the gradual
+improvements I've made, but I've also kept the older, worse filters in the
+extension to prove to myself that my changes have been an improvement.
 
 ## Screenshot
 
-Yes, there are too many filters. No, I won't remove any.
+![Colorblind Filters Advanced menu](colorblind-filters-advanced.png)
 
-![Colorblind Filters menu](colorblind-filters.png)
-
-## Installation
+## Installation from Source
 
 Should support GNOME Shell 45 - 48, but I don't test against older versions.
 
@@ -31,28 +31,9 @@ out and back in (X11 and Wayland) to load the extension.
 
 ## "Quick" Start
 
-At this point, this extension has entirely too many filter options to choose
-from (31 at the time of writing!), and choosing is probably overwhelming. If
-you want to correct for color blindness:
-
-1. For mild to moderate prot/deuter/tritanomaly, try the "OCS" filters first.
-   They should preserve the most color information and cause the least
-   unnecessary distortion. If they don't work well for you, please open an
-   issue! They're my babies and I love them very much.
-2. For tritanomaly, if the "OCS" filter doesn't agree with you, try the
-   "Modified Tritanopia Correction (ES)" filter. I prefer the "Modified"
-   version, but YMMV. (The "ES" filters for other color blindness types haven't
-   been tuned or validated, so I can't recommend them. Check out [this
-   issue](https://github.com/deldotbrain/gnome-colorblind-filters/issues/2) if
-   you'd like to help fix that!)
-3. Use the "HPE" filter for your color blindness type.
-4. Don't use the "AOSP" filters. They're included only to demonstrate that
-   there's a bug in Android that makes its filters look worse.
-
-If you want to simulate color blindness, use the "HPE" filters. Again, the
-"AOSP" filters only exist to demonstrate an Android bug. I suspect that the
-"Modified Tritanopia Correction (HPE)" filter is more accurate than its
-un-"Modified" version, but I have no real evidence for that claim.
+Once installed, a new button will appear in the Quick Settings menu. Clicking
+it toggles the currently-selected filter, and opening it reveals configuration
+options.
 
 ## Other Setup Instructions
 
@@ -85,16 +66,30 @@ and
 
     dconf write /org/gnome/shell/extensions/colorblind-filters-advanced/filter-active true
 
-## Filter Descriptions
+## Filter Algorithm Descriptions
 
-Filters are grouped into major categories (color blindness corrections,
-color blindness simulations, other effects). Within the color blindness
-categories, filters have a "(FOO)" at the end of their name, indicating the
-general approach used by the filter.
+This extension includes many simulation and correction algorithms. They range
+in quality, complexity, and of course, each user will have their own preference
+for which algorithm works "best".
 
-In order of increasing goodness, those approaches are:
+As general guidelines:
 
-### "AOSP" Filters
+- "Opponent Color Solver" is preferred by the developer for correcting their
+  moderate tritanomaly. This algorithm is being developed in this extension, so
+  if it doesn't work well for you, please open an issue so it can be improved!
+- "Error Steering" (only for correction) works well for fixing visibility
+  problems for tritanomaly, but hasn't been tuned or validated for other color
+  blindness types. Check out [this
+  issue](https://github.com/deldotbrain/gnome-colorblind-filters/issues/2) if
+  you'd like to help fix that!
+- "Daltonize" is more or less the same algorithm used by most other
+  simulation/correction filters.
+- "Android" is the slightly funky version of "Daltonize" used by Android. [The
+  developer thinks that's a bug in Android, and originally started this project
+  to prove
+  it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1).
+
+### "Android"
 
 These are the daltonization filters used in Android. They use a poorly-selected
 transform into LMS color space that causes them to look worse than other
@@ -109,45 +104,37 @@ the LMS value of a color down onto it to simulate the loss of sensitivity to
 the affected color. If correcting for color blindness, the stimulus that was
 lost in the process is spread over the unaffected cones.
 
-Named after the Android Open Source Project.
-
-### "HPE" Filters
+### "Daltonize"
 
 The same filters as "AOSP", but with a better choice of color space transform
-that makes them look better. Most other daltonization filters work very
-similarly.
+that (in the developer's opinion) makes them look better. Most other
+daltonization filters work very similarly.
 
-Named after the [Hunt–Pointer–Estevez XYZ-to-LMS
-transform](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) that they
-use.
-
-### "ES" Filters
+### "Error Steering"
 
 To the best of my knowledge, these filters use a novel change to the typical
 daltonization filter that makes them more useful for correction. Instead of
-spreading the lost stimulus to the other cones, the error vector is rotated in
-a chosen direction and added back into the image in an effort to improve
-visibility of the missing color.
+spreading the lost stimulus to the other cones, a specific color is added to
+the image in proportion to the amount of error that color blindness would
+cause.
 
 For example, I (tritanomalous) find that adding white to replace the blue light
 that I didn't see is very helpful for making blue more visible in the ways it's
 commonly used in computer UIs. Conversely, this filter also subtracts white
 from yellow, making it easier for me to distinguish from white.
 
-Named for their Error Steering approach.
-
-### Side-note: "Modified" Tritanopia Filters
+### Side-note: "Modified" Transform for Tritanopia
 
 When dealing with tritanopia, daltonization filters typically ignore the fact
 that both red and green are unaffected by tritanopia and are perceived more or
 less independently from blue. Typically, they arbitrarily choose to hold red
 constant when simulating, changing the appearance of greens considerably.
 
-The "Modified" filters hold the difference between red and green constant,
+The "Modified" transform holds the difference between red and green constant,
 balancing the change in their appearance between them. To my eyes, this looks
-less weird, but I don't have any evidence to say that they're more accurate.
+less weird, but I don't have any evidence to say that it's more accurate.
 
-### "OCS" Filters
+### "Opponent Color Solver" Filters
 
 These filters are radically different from anything else in this extension, and
 from any other filter I've seen in the wild. Whether that's a good thing or not
@@ -196,8 +183,6 @@ increase their maximum strength, fix the green tint and decrease of red and
 green brightness that the tritanomaly filter causes, etc. If you've actually
 tried them, I want to know how they work for you! Open an issue to discuss,
 send me an email (the address on my commits works), or whatever.
-
-Named for being Opponent Color Solvers.
 
 ## Contribution
 Unless your contribution is specific to the filter algorithms, please consider
