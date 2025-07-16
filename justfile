@@ -1,3 +1,5 @@
+# vim:sw=4 ts=4 sts=4 et
+
 suffix := 'dev'
 package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
 
@@ -17,3 +19,9 @@ uninstall:
 test display=":1" resolution="1280x720": install
     MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
     dbus-run-session -- gnome-shell --nested --wayland --display={{display}}
+
+lint:
+    npx eslint *.js
+
+install-eslint:
+    npm install -D eslint @eslint/js

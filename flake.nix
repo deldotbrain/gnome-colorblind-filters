@@ -16,6 +16,9 @@
             gjs
             clutter
 
+            # because there wasn't enough pain in this world, we created eslint
+            nodejs
+
             # Building
             gettext
             glib.dev

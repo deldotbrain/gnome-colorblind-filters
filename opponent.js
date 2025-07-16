@@ -74,12 +74,12 @@ const lms2opp = useWandell
         -0.105,
         0.000,
         -0.400,
-        0.700
+        0.700,
     ];
 
 function getRGB2Opp(whichCone = -1, factor = 0) {
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
-    const sim_rgb2lms = whichCone == -1
+    const sim_rgb2lms = whichCone === -1
         ? rgb2lms
         : M.setRow3(rgb2lms, whichCone, [
             () => M.add3(
@@ -100,7 +100,7 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
 
     // Scale rows so that each opponent component has a range of 1
     const r2o_scaled = M.mult3x3(
-        M.diagonal(M.gen3((i) =>
+        M.diagonal(M.gen3(i =>
             1 / M.getRow3(rgb2opp, i).reduce((a, v) => a + Math.abs(v), 0))),
         rgb2opp);
 
@@ -108,10 +108,10 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // This prevents the incorrect and colorful "correction" of grays. This
     // feels weird because it changes the ratio of the components, but only
     // the absolute difference between them matters.
-    const condition = (row) => {
+    const condition = row => {
         const offset = -(row[0] + row[1] + row[2]) / 3;
-        return M.gen3((i) => row[i] + offset);
-    }
+        return M.gen3(i => row[i] + offset);
+    };
     return M.fromRows(
         M.getRow3(r2o_scaled, 0),
         condition(M.getRow3(r2o_scaled, 1)),
@@ -132,10 +132,10 @@ function updateUniform(effect, name, val) {
 function uniformDecl(name, size = 9) {
     return Array(size).fill().map((_, i) => `uniform float ${name}${i}`).join(';\n');
 }
-function uniformUse(name, type = "mat3", size = 9) {
-    return type + "(" + Array(size).fill().map((_, i) => `${name}${i}`).join(', ') + ")";
+function uniformUse(name, type = 'mat3', size = 9) {
+    return `${type}(${Array(size).fill().map((_, i) => `${name}${i}`).join(', ')})`;
 }
-function uniformDefn(name, type = "mat3", size = 9) {
+function uniformDefn(name, type = 'mat3', size = 9) {
     return `${type} ${name} = ${uniformUse(name, type, size)}`;
 }
 

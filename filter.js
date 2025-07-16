@@ -12,19 +12,19 @@ import * as Opponent from './opponent.js';
 
 export const FilterMode = {
     CORRECTION: {
-        name: (_) => _('Color Blindness Correction'),
+        name: _ => _('Color Blindness Correction'),
         cfgString: 'correction',
         isColorBlindness: true,
         properties: { isSimulation: false },
     },
     SIMULATION: {
-        name: (_) => _('Color Blindness Simulation'),
+        name: _ => _('Color Blindness Simulation'),
         cfgString: 'simulation',
         isColorBlindness: true,
         properties: { isSimulation: true },
     },
     EFFECT: {
-        name: (_) => _('Other Effects'),
+        name: _ => _('Other Effects'),
         cfgString: 'effect',
         isColorBlindness: false,
         properties: {},
@@ -33,35 +33,35 @@ export const FilterMode = {
 
 export const EffectAlgorithm = {
     MIX_GBR: {
-        name: (_) => _('Channel Mixer - GBR'),
+        name: _ => _('Channel Mixer - GBR'),
         cfgString: 'mixgbr',
         effect: Shaders.ColorMixerEffect,
         properties: { mode: 0 },
         usesFactor: true,
     },
     MIX_BRG: {
-        name: (_) => _('Channel Mixer - BRG'),
+        name: _ => _('Channel Mixer - BRG'),
         cfgString: 'mixbrg',
         effect: Shaders.ColorMixerEffect,
         properties: { mode: 1 },
         usesFactor: true,
     },
     DESATURATE: {
-        name: (_) => _('Desaturation'),
+        name: _ => _('Desaturation'),
         cfgString: 'desaturate',
         effect: Shaders.DesaturateEffect,
         properties: {},
         usesFactor: true,
     },
     LIGHT_INVERT: {
-        name: (_) => _('Lightness Inversion'),
+        name: _ => _('Lightness Inversion'),
         cfgString: 'lightinvert',
         effect: Shaders.InversionEffect,
         properties: { mode: 0 },
         usesFactor: false,
     },
     COLOR_INVERT: {
-        name: (_) => _('Color Inversion'),
+        name: _ => _('Color Inversion'),
         cfgString: 'colorinvert',
         effect: Shaders.InversionEffect,
         properties: { mode: 2 },
@@ -71,17 +71,17 @@ export const EffectAlgorithm = {
 
 export const ColorBlindnessType = {
     PROTAN: {
-        name: (_) => _('Protanopia'),
+        name: _ => _('Protanopia'),
         cfgString: 'protanopia',
         properties: { whichCone: 0 },
     },
     DEUTAN: {
-        name: (_) => _('Deuteranopia'),
+        name: _ => _('Deuteranopia'),
         cfgString: 'deuteranopia',
         properties: { whichCone: 1 },
     },
     TRITAN: {
-        name: (_) => _('Tritanopia'),
+        name: _ => _('Tritanopia'),
         cfgString: 'tritanopia',
         properties: { whichCone: 2 },
     },
@@ -89,7 +89,7 @@ export const ColorBlindnessType = {
 
 export const ColorBlindnessAlgorithm = {
     OCS: {
-        name: (_) => _('Opponent Color Solver'),
+        name: _ => _('Opponent Color Solver'),
         cfgString: 'ocs',
         correctionEffect: Opponent.OpponentCorrectionEffect,
         simulationEffect: Opponent.OpponentSimulationEffect,
@@ -98,7 +98,7 @@ export const ColorBlindnessAlgorithm = {
         usesTritanHack: false,
     },
     ES: {
-        name: (_) => _('Error Steering'),
+        name: _ => _('Error Steering'),
         cfgString: 'es',
         correctionEffect: Shaders.DaltonismEffect,
         simulationEffect: null,
@@ -110,7 +110,7 @@ export const ColorBlindnessAlgorithm = {
         usesTritanHack: true,
     },
     HPE: {
-        name: (_) => _('Daltonize'),
+        name: _ => _('Daltonize'),
         cfgString: 'hpe',
         correctionEffect: Shaders.DaltonismEffect,
         simulationEffect: Shaders.DaltonismEffect,
@@ -122,7 +122,7 @@ export const ColorBlindnessAlgorithm = {
         usesTritanHack: true,
     },
     AOSP: {
-        name: (_) => _('Android'),
+        name: _ => _('Android'),
         cfgString: 'aosp',
         correctionEffect: Shaders.DaltonismEffect,
         simulationEffect: Shaders.DaltonismEffect,
@@ -137,12 +137,12 @@ export const ColorBlindnessAlgorithm = {
 
 export const TritanHackEnable = {
     ENABLE: {
-        name: (_) => _('Modified Transform'),
+        name: _ => _('Modified Transform'),
         cfgString: 'typical',
         properties: { tritanHack: true },
     },
     DISABLE: {
-        name: (_) => _('Typical Transform'),
+        name: _ => _('Typical Transform'),
         cfgString: 'modified',
         properties: { tritanHack: false },
     },
@@ -154,14 +154,14 @@ export function tritan_hack_allowed(algorithm, color_blindness_type) {
 
 function getProperties(kind) {
     // Returns properties with string keys in creation order.
-    return Object.getOwnPropertyNames(kind).map((n) => kind[n]);
+    return Object.getOwnPropertyNames(kind).map(n => kind[n]);
 }
 
 export function get_algorithms(mode) {
     if (mode === FilterMode.CORRECTION || mode === FilterMode.SIMULATION) {
         let cb_algs = getProperties(ColorBlindnessAlgorithm);
         if (mode === FilterMode.SIMULATION) {
-            cb_algs = cb_algs.filter((a) => a.simulationEffect !== null);
+            cb_algs = cb_algs.filter(a => a.simulationEffect !== null);
         }
         return cb_algs;
     } else if (mode === FilterMode.EFFECT) {
@@ -206,7 +206,7 @@ function findValid(choices, requested, current, fallback = null) {
         return null;
     }
 
-    const find = (v) => choices.find((c) => c === v) || null;
+    const find = v => choices.find(c => c === v) || null;
     return find(requested) || find(current) || find(fallback) || choices[0];
 }
 
@@ -217,7 +217,6 @@ export class Filter {
         algorithm = null,
         color_blindness_type = null,
         tritan_hack = null) {
-
         // A known-good default configuration to start from
         this._mode = FilterMode.CORRECTION;
         this._algorithm = ColorBlindnessAlgorithm.OCS;
@@ -346,7 +345,7 @@ export class Filter {
 
     get factor() { return this._factor; }
     set factor(new_factor) {
-        if (0 <= new_factor && new_factor <= 1) {
+        if (new_factor >= 0 && new_factor <= 1) {
             this._factor = new_factor;
         }
     }

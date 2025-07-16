@@ -24,8 +24,8 @@ import * as M from './matrix.js';
 
 // See lms_matrices.py for where the magic numbers come from.
 const transforms = {
-    "HPE": {
-        "rgb2lms": [
+    'HPE': {
+        'rgb2lms': [
             0.3139902162,
             0.15537240627999999,
             0.01775238698,
@@ -34,9 +34,9 @@ const transforms = {
             0.10944209440000001,
             0.04649754622000001,
             0.08670141862000001,
-            0.87256922462
+            0.87256922462,
         ],
-        "lms2rgb": [
+        'lms2rgb': [
             5.472212058380287,
             -1.1252418955335692,
             0.029801651173470223,
@@ -45,11 +45,11 @@ const transforms = {
             -0.19318072825714036,
             0.16963707682797408,
             -0.1678952022237088,
-            1.1636478927838123
-        ]
+            1.1636478927838123,
+        ],
     },
-    "AOSP": {
-        "rgb2lms": [
+    'AOSP': {
+        'rgb2lms': [
             0.39040536,
             0.07084159000000004,
             0.023108180000000002,
@@ -58,9 +58,9 @@ const transforms = {
             0.12802080000000002,
             0.008926320000000027,
             0.0013577500000000052,
-            0.93624512
+            0.93624512,
         ],
-        "lms2rgb": [
+        'lms2rgb': [
             2.85846766750094,
             -0.21018226726543507,
             -0.0418120025914336,
@@ -69,9 +69,9 @@ const transforms = {
             -0.11816935309996411,
             -0.024891035560677063,
             0.0003242814915942015,
-            1.0686663677928099
-        ]
-    }
+            1.0686663677928099,
+        ],
+    },
 };
 
 
@@ -118,8 +118,9 @@ export function getCorrection3x3(properties) {
     // lines between black and white, and between red and green. To my (somewhat
     // tritanomalous) eyes, this does a better job correcting color.
     const lms_bw = M.multiplyMatrixVec(rgb2lms, Array(3).fill(1.0));
-    const lms_ab = M.multiplyMatrixVec(rgb2lms,
-        !tritanHack ? pick([0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]) : [1.0, -1.0, 0.0]);
+    const lms_ab = M.multiplyMatrixVec(rgb2lms, !tritanHack
+        ? pick([0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0])
+        : [1.0, -1.0, 0.0]);
     const soln = M.cross3(lms_bw, lms_ab);
 
     const simulation = pick(

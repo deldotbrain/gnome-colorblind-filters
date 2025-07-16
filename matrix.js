@@ -73,19 +73,19 @@ export function getCol3(mat, col) {
 }
 
 export function setRow3(mat, row, vec) {
-    return gen3x3((r, c) => r == row ? vec[c] : mat[c * 3 + r]);
+    return gen3x3((r, c) => r === row ? vec[c] : mat[c * 3 + r]);
 }
 
 export function setCol3(mat, col, vec) {
-    return gen3x3((r, c) => c == col ? vec[r] : mat[c * 3 + r]);
+    return gen3x3((r, c) => c === col ? vec[r] : mat[c * 3 + r]);
 }
 
 export function add3(a, b) {
-    return gen3((i) => a[i] + b[i]);
+    return gen3(i => a[i] + b[i]);
 }
 
 export function sub3(a, b) {
-    return gen3((i) => a[i] - b[i]);
+    return gen3(i => a[i] - b[i]);
 }
 
 export function dot3(a, b) {
@@ -93,7 +93,7 @@ export function dot3(a, b) {
 }
 
 export function scale3(s, vec) {
-    return vec.map((x) => x * s);
+    return vec.map(x => x * s);
 }
 
 export function magnitude3(vec) {
@@ -101,23 +101,23 @@ export function magnitude3(vec) {
 }
 
 export function multiplyMatrixVec(mat, col_vec) {
-    return gen3((i) => dot3(getRow3(mat, i), col_vec));
+    return gen3(i => dot3(getRow3(mat, i), col_vec));
 }
 
 export function cross3(a, b) {
     return [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0]
+        a[0] * b[1] - a[1] * b[0],
     ];
 }
 
 export function add3x3(a, b) {
-    return gen3x3ByIdx((i) => a[i] + b[i]);
+    return gen3x3ByIdx(i => a[i] + b[i]);
 }
 
 export function sub3x3(a, b) {
-    return gen3x3ByIdx((i) => a[i] - b[i]);
+    return gen3x3ByIdx(i => a[i] - b[i]);
 }
 
 export function mult3x3(a, b) {
@@ -125,7 +125,7 @@ export function mult3x3(a, b) {
 }
 
 export function scale3x3(s, mat) {
-    return mat.map((x) => x * s);
+    return mat.map(x => x * s);
 }
 
 // *Sigh* I didn't want to have write any non-trivial matrix functions.
@@ -142,17 +142,19 @@ export function inverse3x3(mat) {
                 max_row = row;
             }
         }
-        if (work[idx(max_row, col)] == 0) { return null; }
+        if (work[idx(max_row, col)] === 0) {
+            return null;
+        }
 
         // scale the rest of the row in the work matrix as if the pivot had been
         // scaled to 1; scale the whole return matrix row
-        const scale = 1 / work[idx(max_row, col)];
-        for (let c = col + 1; c < 3; c++) {
-            work[idx(max_row, c)] *= scale;
-        }
-        for (let c = 0; c < 3; c++) {
-            ret[idx(max_row, c)] *= scale;
-        }
+        const pivot_scale = 1 / work[idx(max_row, col)];
+        for (let c = col + 1; c < 3; c++)
+            work[idx(max_row, c)] *= pivot_scale;
+
+        for (let c = 0; c < 3; c++)
+            ret[idx(max_row, c)] *= pivot_scale;
+
 
         // Swap the rest of the row in the work matrix into place; swap the
         // whole return matrix row
@@ -172,16 +174,16 @@ export function inverse3x3(mat) {
 
         // Subtract from the other rows
         for (let r = 0; r < 3; r++) {
-            if (r == col) { continue; }
-            const scale = work[idx(r, col)];
+            if (r === col)
+                continue;
+            const elim_scale = work[idx(r, col)];
             // As usual: only update the work columns to the right, but update
             // all return matrix columns
-            for (let c = col + 1; c < 3; c++) {
-                work[idx(r, c)] -= scale * work[idx(col, c)];
-            }
-            for (let c = 0; c < 3; c++) {
-                ret[idx(r, c)] -= scale * ret[idx(col, c)];
-            }
+            for (let c = col + 1; c < 3; c++)
+                work[idx(r, c)] -= elim_scale * work[idx(col, c)];
+
+            for (let c = 0; c < 3; c++)
+                ret[idx(r, c)] -= elim_scale * ret[idx(col, c)];
         }
     }
 

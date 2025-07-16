@@ -27,12 +27,12 @@ import { Slider } from 'resource:///org/gnome/shell/ui/slider.js';
 import {
     Filter, FilterMode, EffectAlgorithm, ColorBlindnessType,
     ColorBlindnessAlgorithm, TritanHackEnable,
-    get_algorithms, tritan_hack_allowed
+    get_algorithms, tritan_hack_allowed,
 } from './filter.js';
 
 function connect_setting_eager(settings, type_name, name, callback) {
-    const getter = Gio.Settings.prototype['get_' + type_name];
-    settings.connect('changed::' + name, (s, k) => callback(getter.call(s, k)));
+    const getter = Gio.Settings.prototype[`get_${type_name}`];
+    settings.connect(`changed::${name}`, (s, k) => callback(getter.call(s, k)));
     callback(getter.call(settings, name));
 }
 
@@ -72,7 +72,7 @@ class FilterManager {
         settings.connect('changed::filter-strength', this.update_filter.bind(this));
         settings.get_double('filter-strength');
         connect_setting_eager(settings, 'string', 'filter-name',
-            (cfg) => {
+            cfg => {
                 this.configured_filter = Filter.fromString(cfg);
                 this.update_filter();
             });
@@ -91,7 +91,7 @@ class FilterManager {
             ? this.configured_filter : null;
 
         const enabled = configured !== null;
-        const changed_effect = this.filter?.effect !== configured?.effect
+        const changed_effect = this.filter?.effect !== configured?.effect;
 
         if (changed_effect) {
             Main.uiGroup.remove_effect_by_name(this.effect_name);
@@ -141,7 +141,7 @@ const FilterIndicator = GObject.registerClass(
 
             this.settings = settings;
             this.indicator = this._addIndicator();
-            connect_setting_eager(settings, 'boolean', 'filter-active', (active) => {
+            connect_setting_eager(settings, 'boolean', 'filter-active', active => {
                 this.indicator.icon_name = pick_icon(active);
             });
 
@@ -150,7 +150,7 @@ const FilterIndicator = GObject.registerClass(
 
         destroy() {
             this.settings = null;
-            this.quickSettingsItems.forEach((i) => i.destroy());
+            this.quickSettingsItems.forEach(i => i.destroy());
             this.quickSettingsItems = [];
             super.destroy();
         }
@@ -165,11 +165,13 @@ const FilterIndicator = GObject.registerClass(
     });
 
 function get_label_for_filter(filter, _) {
-    return filter
-        ? filter.mode.isColorBlindness
+    if (filter) {
+        return filter.mode.isColorBlindness
             ? filter.color_blindness_type.name(_)
-            : filter.algorithm.name(_)
-        : '';
+            : filter.algorithm.name(_);
+    } else {
+        return '';
+    }
 }
 
 // At one point, I was going to have a toggle to display a slider instead of a
@@ -246,18 +248,18 @@ class FilterConfigMenu {
             menu.addMenuItem(menu_item);
         }
 
-        const get_variants = (group) => {
+        const get_variants = group => {
             const ret = [];
             for (const v in group) {
                 ret.push(group[v]);
             }
             return ret;
-        }
+        };
         const make_submenu = (title, property, contents) => {
             const submenu = new PopupMenu.PopupSubMenuMenuItem(title, false);
             const items = {};
 
-            contents.forEach((c) => {
+            contents.forEach(c => {
                 items[c.cfgString] = submenu.menu.addAction(c.name(_), () => {
                     this.update_config(property, c);
                 });
@@ -279,7 +281,7 @@ class FilterConfigMenu {
         };
 
         this.tritan_hack_switch = new PopupMenu.PopupSwitchMenuItem(_('Use Alternate Transform'), false);
-        this.tritan_hack_switch.connect('notify::state', (s) => {
+        this.tritan_hack_switch.connect('notify::state', s => {
             this.update_config('tritan_hack', s.state
                 ? TritanHackEnable.ENABLE
                 : TritanHackEnable.DISABLE);
@@ -288,7 +290,7 @@ class FilterConfigMenu {
 
         this.update_filter(new Filter());
 
-        connect_setting_eager(settings, 'string', 'filter-name', (cfg_string) => {
+        connect_setting_eager(settings, 'string', 'filter-name', cfg_string => {
             let filter = Filter.fromString(cfg_string);
             if (filter !== null) {
                 this.update_filter(filter);
@@ -341,7 +343,7 @@ class FilterConfigMenu {
 
         const set_checked = (menu, selected) => {
             Object.entries(menu.items).forEach(
-                ([name, item]) => item.setOrnament(name == selected.cfgString
+                ([name, item]) => item.setOrnament(name === selected.cfgString
                     ? PopupMenu.Ornament.CHECK
                     : PopupMenu.Ornament.NONE));
         };
@@ -361,9 +363,10 @@ class FilterConfigMenu {
         s.cb_alg.menu.visible = true;
         s.eff_type.menu.visible = false;
 
-        const allowed_algorithms = new Set(get_algorithms(validated.mode).map((a) => a.cfgString));
-        Object.entries(this.submenus.cb_alg.items).forEach(
-            ([name, item]) => item.visible = allowed_algorithms.has(name));
+        const allowed_algorithms = new Set(get_algorithms(validated.mode).map(a => a.cfgString));
+        Object.entries(this.submenus.cb_alg.items).forEach(([name, item]) => {
+            item.visible = allowed_algorithms.has(name);
+        });
 
         set_checked(s.cb_type, validated.color_blindness_type);
         set_checked(s.cb_alg, validated.algorithm);
