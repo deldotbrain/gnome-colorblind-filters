@@ -8,12 +8,12 @@
  */
 'use strict';
 
-// FIXME: clean up metadata json; does version-name do anything?
-// FIXME: enable/disable leaks memory, but that might be unavoidable when doing
-// Quick Settings things? The QS example code on gjs.guide leaks, too.
-// ...oh what the absolute fuck? apparently it's considered correct that JS objects leak their reference if .destroy() isn't manually called????
-// TODO: verify that separate this.getSettings() helps limit leaks and/or works for different lifecycles
-// FIXME: I'd really prefer that the menu not collapse after every action
+// TODO: verify that separate this.getSettings() helps limit leaks and/or works
+// for different lifecycles
+//
+// FIXME: I'd really prefer that the menu not collapse after every action (yes,
+// reviewer, I'm well aware that this is complicated enough for a dedicated
+// preferences dialog, to which I say: meh.)
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
@@ -29,12 +29,6 @@ import {
     ColorBlindnessAlgorithm, TritanHackEnable,
     get_algorithms, tritan_hack_allowed,
 } from './filter.js';
-
-function connect_setting_eager(settings, type_name, name, callback) {
-    const getter = Gio.Settings.prototype[`get_${type_name}`];
-    settings.connect(`changed::${name}`, (s, k) => callback(getter.call(s, k)));
-    callback(getter.call(settings, name));
-}
 
 export default class ColorblindFilters extends Extension {
     enable() {
@@ -55,6 +49,12 @@ export default class ColorblindFilters extends Extension {
         this.indicator?.destroy();
         this.indicator = null;
     }
+}
+
+function connect_setting_eager(settings, type_name, name, callback) {
+    const getter = Gio.Settings.prototype[`get_${type_name}`];
+    settings.connect(`changed::${name}`, (s, k) => callback(getter.call(s, k)));
+    callback(getter.call(settings, name));
 }
 
 class FilterManager {
@@ -221,6 +221,10 @@ class FilterConfigMenu {
         this.gettext = _;
         this.settings = settings;
 
+        this.thing_destroyer_9000 = new DestroyAllTheThings();
+        const make = this.thing_destroyer_9000.construct.bind(this.thing_destroyer_9000);
+        const cleanup = this.thing_destroyer_9000.add.bind(this.thing_destroyer_9000);
+
         // Whatever settings were most recently configured, either by menu or by
         // external process. No-longer-valid settings are kept in case they
         // become relevant again in the future.
@@ -233,17 +237,17 @@ class FilterConfigMenu {
         };
 
         if (with_toggle) {
-            const enable_switch = new PopupMenu.PopupSwitchMenuItem(_('Enable Filter'), false);
+            const enable_switch = make(PopupMenu.PopupSwitchMenuItem, _('Enable Filter'), false);
             settings.bind('filter-active', enable_switch, 'state', 0);
             menu.addMenuItem(enable_switch);
         }
 
         if (with_slider) {
-            const menu_item = new PopupMenu.PopupBaseMenuItem();
-            const strength_slider = new Slider(0);
+            const menu_item = make(PopupMenu.PopupBaseMenuItem);
+            const strength_slider = make(Slider, 0);
             settings.bind('filter-strength', strength_slider, 'value', 0);
 
-            menu_item.add_child(new St.Label({ text: _('Filter Strength') }));
+            menu_item.add_child(make(St.Label, { text: _('Filter Strength') }));
             menu_item.add_child(strength_slider);
             menu.addMenuItem(menu_item);
         }
@@ -256,13 +260,13 @@ class FilterConfigMenu {
             return ret;
         };
         const make_submenu = (title, property, contents) => {
-            const submenu = new PopupMenu.PopupSubMenuMenuItem(title, false);
+            const submenu = make(PopupMenu.PopupSubMenuMenuItem, title, false);
             const items = {};
 
             contents.forEach(c => {
-                items[c.cfgString] = submenu.menu.addAction(c.name(_), () => {
+                items[c.cfgString] = cleanup(submenu.menu.addAction(c.name(_), () => {
                     this.update_config(property, c);
-                });
+                }));
             });
 
             menu.addMenuItem(submenu);
@@ -280,7 +284,7 @@ class FilterConfigMenu {
                 get_variants(EffectAlgorithm)),
         };
 
-        this.tritan_hack_switch = new PopupMenu.PopupSwitchMenuItem(_('Use Alternate Transform'), false);
+        this.tritan_hack_switch = make(PopupMenu.PopupSwitchMenuItem, _('Use Alternate Transform'), false);
         this.tritan_hack_switch.connect('notify::state', s => {
             this.update_config('tritan_hack', s.state
                 ? TritanHackEnable.ENABLE
@@ -302,6 +306,7 @@ class FilterConfigMenu {
         this.settings = null;
         this.submenus = {};
         this.tritan_hack_switch = null;
+        this.thing_destroyer_9000.destroy();
     }
 
     update_config(field, value) {
@@ -377,5 +382,33 @@ class FilterConfigMenu {
         } else {
             this.tritan_hack_switch.visible = false;
         }
+    }
+}
+
+// Manual memory management in GC languages isn't normal. But on projects with
+// names that start with "G", it is. Projects with names that start with "G":
+// not even once.
+class DestroyAllTheThings {
+    constructor() {
+        this.objects = [];
+    }
+
+    destroy() {
+        this.objects.reverse();
+        for (const obj of this.objects) {
+            obj.destroy();
+        }
+        this.objects = [];
+    }
+
+    construct(cls, ...args) {
+        return this.add(new cls(...args));
+    }
+
+    add(obj) {
+        if (obj?.destroy) {
+            this.objects.push(obj);
+        }
+        return obj;
     }
 }
