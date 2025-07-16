@@ -31,16 +31,20 @@ export default class ColorblindFilters extends Extension {
         const _ = this.gettext.bind(this);
         const settings = this.getSettings();
 
+        // For dev builds, use the hacked extension name as a title
+        const title = this.metadata.name === 'Colorblind Filters Advanced'
+            ? _('Colorblind Filters')
+            : this.metadata.name;
+
         this.destroyer = new DestroyAllTheThings();
         this.destroyer.construct(FilterManager, this.metadata.name, settings);
         const indicator = this.destroyer.construct(FilterIndicator, settings);
-        indicator.attach(new FilterQuickSettingsMenu(_, settings));
+        indicator.attach(new FilterQuickSettingsMenu(_, title, settings));
         indicator.register();
     }
 
     disable() {
         this.destroyer.destroy();
-        this.destroyer = null;
     }
 }
 
@@ -169,14 +173,14 @@ function get_label_for_filter(filter, _) {
 // was not able to do what I wanted, so I decided against it (/diplomatic).
 const FilterQuickSettingsMenu = GObject.registerClass(
     class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
-        _init(_, settings) {
+        _init(_, title, settings) {
             super._init({
                 toggleMode: true,
             });
 
             this.gettext = _;
 
-            this.title = _('Colorblind Filters');
+            this.title = title;
 
             this.destroyer = new DestroyAllTheThings();
             const settings_proxy = this.destroyer.settings_proxy(settings);
