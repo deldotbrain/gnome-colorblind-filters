@@ -96,6 +96,17 @@ export const ColorBlindnessAlgorithm = {
         properties: {},
         usesFactor: true,
         usesTritanHack: false,
+        usesHighContrast: false,
+    },
+    GDH: {
+        name: _ => _('GdH\'s Filters'),
+        cfgString: 'gdh',
+        correctionEffect: Shaders.UpstreamDaltonismEffect,
+        simulationEffect: Shaders.UpstreamDaltonismEffect,
+        properties: {},
+        usesFactor: true,
+        usesTritanHack: false,
+        usesHighContrast: true,
     },
     ES: {
         name: _ => _('Error Steering'),
@@ -108,6 +119,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
+        usesHighContrast: false,
     },
     HPE: {
         name: _ => _('Daltonize'),
@@ -120,6 +132,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
+        usesHighContrast: false,
     },
     AOSP: {
         name: _ => _('Android'),
@@ -132,6 +145,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
+        usesHighContrast: false,
     },
 };
 
@@ -148,8 +162,29 @@ export const TritanHackEnable = {
     },
 };
 
-export function tritan_hack_allowed(algorithm, color_blindness_type) {
-    return algorithm.usesTritanHack && color_blindness_type === ColorBlindnessType.TRITAN;
+export const HighContrastEnable = {
+    ENABLE: {
+        name: _ => _('High Contrast'),
+        cfgString: 'high',
+        properties: { highContrast: true },
+    },
+    DISABLE: {
+        name: _ => _('Normal Contrast'),
+        cfgString: 'normal',
+        properties: { highContrast: false },
+    },
+};
+
+export function tritan_hack_allowed(mode, algorithm, color_blindness_type) {
+    return (mode === FilterMode.CORRECTION || mode === FilterMode.SIMULATION)
+        && algorithm?.usesTritanHack
+        && color_blindness_type === ColorBlindnessType.TRITAN;
+}
+
+export function high_contrast_allowed(mode, algorithm, color_blindness_type) {
+    return mode === FilterMode.CORRECTION && algorithm?.usesHighContrast
+        && (color_blindness_type === ColorBlindnessType.PROTAN
+            || color_blindness_type === ColorBlindnessType.DEUTAN);
 }
 
 function getProperties(kind) {
@@ -180,10 +215,16 @@ export function get_color_blindness_types(mode, _algorithm) {
 }
 
 export function get_tritan_hack_opts(mode, algorithm, color_blindness_type) {
-    if ((mode === FilterMode.CORRECTION || mode === FilterMode.SIMULATION) &&
-        algorithm !== null && color_blindness_type !== null &&
-        tritan_hack_allowed(algorithm, color_blindness_type)) {
+    if (tritan_hack_allowed(mode, algorithm, color_blindness_type)) {
         return getProperties(TritanHackEnable);
+    } else {
+        return null;
+    }
+}
+
+export function get_high_contrast_opts(mode, algorithm, color_blindness_type) {
+    if (high_contrast_allowed(mode, algorithm, color_blindness_type)) {
+        return getProperties(HighContrastEnable);
     } else {
         return null;
     }
@@ -216,12 +257,14 @@ export class Filter {
     constructor(mode = null,
         algorithm = null,
         color_blindness_type = null,
-        tritan_hack = null) {
+        tritan_hack = null,
+        high_contrast = null) {
         // A known-good default configuration to start from
         this._mode = FilterMode.CORRECTION;
         this._algorithm = ColorBlindnessAlgorithm.OCS;
         this._color_blindness_type = ColorBlindnessType.DEUTAN;
         this._tritan_hack = null;
+        this._high_contrast = null;
         this._factor = 0.5;
 
         // Actually try to apply the requested configuration
@@ -229,6 +272,7 @@ export class Filter {
         this.algorithm = algorithm;
         this.color_blindness_type = color_blindness_type;
         this.tritan_hack = tritan_hack;
+        this.high_contrast = high_contrast;
     }
 
     static fromString(str) {
@@ -246,6 +290,7 @@ export class Filter {
 
         let color_blindness_type = null;
         let tritan_hack = null;
+        let high_contrast = null;
         if (mode.isColorBlindness) {
             color_blindness_type = lookupString(
                 get_color_blindness_types(mode, algorithm),
@@ -254,11 +299,20 @@ export class Filter {
                 return null;
             }
 
-            if (tritan_hack_allowed(algorithm, color_blindness_type)) {
+            if (tritan_hack_allowed(mode, algorithm, color_blindness_type)) {
                 tritan_hack = lookupString(
                     get_tritan_hack_opts(mode, algorithm, color_blindness_type),
                     fields.shift());
                 if (tritan_hack === null) {
+                    return null;
+                }
+            }
+
+            if (high_contrast_allowed(mode, algorithm, color_blindness_type)) {
+                high_contrast = lookupString(
+                    get_high_contrast_opts(mode, algorithm, color_blindness_type),
+                    fields.shift());
+                if (high_contrast === null) {
                     return null;
                 }
             }
@@ -268,7 +322,7 @@ export class Filter {
             return null;
         }
 
-        return new Filter(mode, algorithm, color_blindness_type, tritan_hack);
+        return new Filter(mode, algorithm, color_blindness_type, tritan_hack, high_contrast);
     }
 
     toString() {
@@ -277,8 +331,11 @@ export class Filter {
         fields.push(this.algorithm.cfgString);
         if (this.mode.isColorBlindness) {
             fields.push(this.color_blindness_type.cfgString);
-            if (tritan_hack_allowed(this.algorithm, this.color_blindness_type)) {
+            if (tritan_hack_allowed(this.mode, this.algorithm, this.color_blindness_type)) {
                 fields.push(this.tritan_hack.cfgString);
+            }
+            if (high_contrast_allowed(this.mode, this.algorithm, this.color_blindness_type)) {
+                fields.push(this.high_contrast.cfgString);
             }
         }
 
@@ -300,7 +357,12 @@ export class Filter {
         if (this.algorithm.usesFactor) {
             properties.factor = this.factor;
         }
-        for (const field of [this.mode, this.algorithm, this.color_blindness_type, this.tritan_hack]) {
+        for (const field of [
+            this.mode,
+            this.algorithm,
+            this.color_blindness_type,
+            this.tritan_hack,
+            this.high_contrast]) {
             if (field !== null) {
                 Object.assign(properties, field.properties);
             }
@@ -341,6 +403,15 @@ export class Filter {
             get_tritan_hack_opts(this.mode, this.algorithm, this.color_blindness_type),
             new_enable,
             this._tritan_hack);
+    }
+
+    get high_contrast() { return this._high_contrast; }
+    set high_contrast(new_hc) {
+        this._high_contrast = findValid(
+            get_high_contrast_opts(this.mode, this.algorithm, this.color_blindness_type),
+            new_hc,
+            this._high_contrast,
+            HighContrastEnable.DISABLE);
     }
 
     get factor() { return this._factor; }

@@ -63,6 +63,10 @@ export function identity3x3() {
     return diagonal([1, 1, 1]);
 }
 
+export function zero3x3() {
+    return Array(9).fill(0);
+}
+
 export function getRow3(mat, row) {
     return [mat[row], mat[row + 3], mat[row + 6]];
 }

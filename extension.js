@@ -22,8 +22,8 @@ import { Slider } from 'resource:///org/gnome/shell/ui/slider.js';
 
 import {
     Filter, FilterMode, EffectAlgorithm, ColorBlindnessType,
-    ColorBlindnessAlgorithm, TritanHackEnable,
-    get_algorithms, tritan_hack_allowed,
+    ColorBlindnessAlgorithm, TritanHackEnable, HighContrastEnable,
+    get_algorithms, tritan_hack_allowed, high_contrast_allowed,
 } from './filter.js';
 
 export default class ColorblindFilters extends Extension {
@@ -221,6 +221,7 @@ class FilterConfigMenu {
             cb_alg: null,
             eff_alg: null,
             tritan_hack: null,
+            high_contrast: null,
         };
 
         if (with_toggle) {
@@ -281,6 +282,15 @@ class FilterConfigMenu {
         });
         menu.addMenuItem(this.tritan_hack_switch);
 
+        this.high_contrast_switch =
+            construct(PopupMenu.PopupSwitchMenuItem, _('High Contrast Mode'), false);
+        destroyer.connect(this.high_contrast_switch, 'notify::state', s => {
+            this.update_config('high_contrast', s.state
+                ? HighContrastEnable.ENABLE
+                : HighContrastEnable.DISABLE);
+        });
+        menu.addMenuItem(this.high_contrast_switch);
+
         this.update_filter(new Filter());
 
         destroyer.settings_proxy(settings).connect_eager('filter-name', 'string',
@@ -296,6 +306,7 @@ class FilterConfigMenu {
         this.settings = null;
         this.submenus = {};
         this.tritan_hack_switch = null;
+        this.high_contrast_switch = null;
         this.strength_slider = null;
         this.thing_destroyer_9000.destroy();
     }
@@ -316,6 +327,9 @@ class FilterConfigMenu {
         if (filter.tritan_hack) {
             fc.tritan_hack = filter.tritan_hack;
         }
+        if (filter.high_contrast) {
+            fc.high_contrast = filter.high_contrast;
+        }
 
         this.update_menus();
     }
@@ -326,7 +340,8 @@ class FilterConfigMenu {
             fc.mode,
             fc.mode.isColorBlindness ? fc.cb_alg : fc.eff_alg,
             fc.color_blindness_type,
-            fc.tritan_hack);
+            fc.tritan_hack,
+            fc.high_contrast);
     }
 
     emit_config() {
@@ -355,6 +370,7 @@ class FilterConfigMenu {
             s.cb_alg.menu.visible = false;
             s.eff_type.menu.visible = true;
             this.tritan_hack_switch.visible = false;
+            this.high_contrast_switch.visible = false;
             set_checked(s.eff_type, validated.algorithm);
             return;
         }
@@ -371,11 +387,18 @@ class FilterConfigMenu {
         set_checked(s.cb_type, validated.color_blindness_type);
         set_checked(s.cb_alg, validated.algorithm);
 
-        if (tritan_hack_allowed(validated.algorithm, validated.color_blindness_type)) {
+        if (tritan_hack_allowed(validated.mode, validated.algorithm, validated.color_blindness_type)) {
             this.tritan_hack_switch.visible = true;
             this.tritan_hack_switch.state = validated.tritan_hack === TritanHackEnable.ENABLE;
         } else {
             this.tritan_hack_switch.visible = false;
+        }
+
+        if (high_contrast_allowed(validated.mode, validated.algorithm, validated.color_blindness_type)) {
+            this.high_contrast_switch.visible = true;
+            this.high_contrast_switch.state = validated.high_contrast === HighContrastEnable.ENABLE;
+        } else {
+            this.high_contrast_switch.visible = false;
         }
     }
 }
