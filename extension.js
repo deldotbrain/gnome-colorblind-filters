@@ -8,17 +8,13 @@
  */
 'use strict';
 
-// TODO: verify that separate this.getSettings() helps limit leaks and/or works
-// for different lifecycles
-//
 // FIXME: I'd really prefer that the menu not collapse after every action (yes,
-// reviewer, I'm well aware that this is complicated enough for a dedicated
+// reviewer, I'm well aware that this is complicated enough to have a dedicated
 // preferences dialog, to which I say: meh.)
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
-import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
@@ -35,51 +31,42 @@ export default class ColorblindFilters extends Extension {
         const _ = this.gettext.bind(this);
         const settings = this.getSettings();
 
-        this.manager = new FilterManager(this.metadata.name, settings);
-
-        this.indicator = new FilterIndicator(settings);
-        this.indicator.attach(new FilterQuickSettingsMenu(_, settings));
-        this.indicator.register();
+        this.destroyer = new DestroyAllTheThings();
+        this.destroyer.construct(FilterManager, this.metadata.name, settings);
+        const indicator = this.destroyer.construct(FilterIndicator, settings);
+        indicator.attach(new FilterQuickSettingsMenu(_, settings));
+        indicator.register();
     }
 
     disable() {
-        this.manager?.destroy();
-        this.manager = null;
-
-        this.indicator?.destroy();
-        this.indicator = null;
+        this.destroyer.destroy();
+        this.destroyer = null;
     }
-}
-
-function connect_setting_eager(settings, type_name, name, callback) {
-    const getter = Gio.Settings.prototype[`get_${type_name}`];
-    settings.connect(`changed::${name}`, (s, k) => callback(getter.call(s, k)));
-    callback(getter.call(settings, name));
 }
 
 class FilterManager {
     constructor(effect_name, settings) {
         this.effect_name = effect_name;
         this.settings = settings;
+        this.destroyer = new DestroyAllTheThings();
+        const settings_proxy = this.destroyer.settings_proxy(settings);
 
         this.effect_cache = new Map();
 
         this.filter = null;
         this.configured_filter = null;
 
-        settings.connect('changed::filter-active', this.update_filter.bind(this));
-        settings.get_boolean('filter-active');
-        settings.connect('changed::filter-strength', this.update_filter.bind(this));
-        settings.get_double('filter-strength');
-        connect_setting_eager(settings, 'string', 'filter-name',
-            cfg => {
-                this.configured_filter = Filter.fromString(cfg);
-                this.update_filter();
-            });
+        settings_proxy.connect('filter-active', 'boolean', () => this.update_filter());
+        settings_proxy.connect('filter-strength', 'double', () => this.update_filter());
+        settings_proxy.connect_eager('filter-name', 'string', cfg_string => {
+            this.configured_filter = Filter.fromString(cfg_string);
+            this.update_filter();
+        });
     }
 
     destroy() {
         this.settings = null;
+        this.destroyer.destroy();
 
         if (this.filter !== null) {
             Main.uiGroup.remove_effect_by_name(this.effect_name);
@@ -139,19 +126,22 @@ const FilterIndicator = GObject.registerClass(
         _init(settings) {
             super._init();
 
-            this.settings = settings;
+            this.destroyer = new DestroyAllTheThings();
+
             this.indicator = this._addIndicator();
-            connect_setting_eager(settings, 'boolean', 'filter-active', active => {
-                this.indicator.icon_name = pick_icon(active);
-            });
+
+            this.destroyer.settings_proxy(settings).connect_eager(
+                'filter-active',
+                'boolean',
+                active => { this.indicator.icon_name = pick_icon(active); });
 
             this.indicator.visible = true;
         }
 
         destroy() {
-            this.settings = null;
             this.quickSettingsItems.forEach(i => i.destroy());
             this.quickSettingsItems = [];
+            this.destroyer.destroy();
             super.destroy();
         }
 
@@ -185,34 +175,31 @@ const FilterQuickSettingsMenu = GObject.registerClass(
             });
 
             this.gettext = _;
-            this.settings = settings;
 
             this.title = _('Colorblind Filters');
 
-            connect_setting_eager(settings, 'boolean', 'filter-active',
-                this.update_enabled.bind(this));
-            connect_setting_eager(settings, 'string', 'filter-name',
-                this.update_effect_name.bind(this));
+            this.destroyer = new DestroyAllTheThings();
+            const settings_proxy = this.destroyer.settings_proxy(settings);
+
+            settings_proxy.connect_eager('filter-active', 'boolean', active => {
+                const icon = pick_icon(active);
+                this.icon_name = icon;
+                this.menu.setHeader(icon, this.title);
+            });
+            settings_proxy.connect_eager('filter-name', 'string', cfg_string => {
+                const filter = Filter.fromString(cfg_string);
+                this.subtitle = get_label_for_filter(filter, this.gettext);
+            });
+
             settings.bind('filter-active', this, 'checked', 0);
 
             this.config_menu = new FilterConfigMenu(_, settings, this.menu, false, true);
         }
 
         destroy() {
-            this.settings = null;
             this.config_menu?.destroy();
+            this.destroyer.destroy();
             super.destroy();
-        }
-
-        update_effect_name(cfg_string) {
-            const filter = Filter.fromString(cfg_string);
-            this.subtitle = get_label_for_filter(filter, this.gettext);
-        }
-
-        update_enabled(enable) {
-            const icon = pick_icon(enable);
-            this.icon_name = icon;
-            this.menu.setHeader(icon, this.title);
         }
     });
 
@@ -222,8 +209,8 @@ class FilterConfigMenu {
         this.settings = settings;
 
         this.thing_destroyer_9000 = new DestroyAllTheThings();
-        const make = this.thing_destroyer_9000.construct.bind(this.thing_destroyer_9000);
-        const cleanup = this.thing_destroyer_9000.add.bind(this.thing_destroyer_9000);
+        const destroyer = this.thing_destroyer_9000;
+        const construct = destroyer.construct.bind(destroyer);
 
         // Whatever settings were most recently configured, either by menu or by
         // external process. No-longer-valid settings are kept in case they
@@ -237,17 +224,17 @@ class FilterConfigMenu {
         };
 
         if (with_toggle) {
-            const enable_switch = make(PopupMenu.PopupSwitchMenuItem, _('Enable Filter'), false);
+            const enable_switch = construct(PopupMenu.PopupSwitchMenuItem, _('Enable Filter'), false);
             settings.bind('filter-active', enable_switch, 'state', 0);
             menu.addMenuItem(enable_switch);
         }
 
         if (with_slider) {
-            const menu_item = make(PopupMenu.PopupBaseMenuItem);
-            const strength_slider = make(Slider, 0);
+            const menu_item = construct(PopupMenu.PopupBaseMenuItem);
+            const strength_slider = construct(Slider, 0);
             settings.bind('filter-strength', strength_slider, 'value', 0);
 
-            menu_item.add_child(make(St.Label, { text: _('Filter Strength') }));
+            menu_item.add_child(construct(St.Label, { text: _('Filter Strength') }));
             menu_item.add_child(strength_slider);
             menu.addMenuItem(menu_item);
         }
@@ -260,13 +247,12 @@ class FilterConfigMenu {
             return ret;
         };
         const make_submenu = (title, property, contents) => {
-            const submenu = make(PopupMenu.PopupSubMenuMenuItem, title, false);
+            const submenu = construct(PopupMenu.PopupSubMenuMenuItem, title, false);
             const items = {};
 
             contents.forEach(c => {
-                items[c.cfgString] = cleanup(submenu.menu.addAction(c.name(_), () => {
-                    this.update_config(property, c);
-                }));
+                items[c.cfgString] = destroyer.add(submenu.menu.addAction(c.name(_),
+                    () => this.update_config(property, c)));
             });
 
             menu.addMenuItem(submenu);
@@ -284,8 +270,9 @@ class FilterConfigMenu {
                 get_variants(EffectAlgorithm)),
         };
 
-        this.tritan_hack_switch = make(PopupMenu.PopupSwitchMenuItem, _('Use Alternate Transform'), false);
-        this.tritan_hack_switch.connect('notify::state', s => {
+        this.tritan_hack_switch =
+            construct(PopupMenu.PopupSwitchMenuItem, _('Use Alternate Transform'), false);
+        destroyer.connect(this.tritan_hack_switch, 'notify::state', s => {
             this.update_config('tritan_hack', s.state
                 ? TritanHackEnable.ENABLE
                 : TritanHackEnable.DISABLE);
@@ -294,12 +281,13 @@ class FilterConfigMenu {
 
         this.update_filter(new Filter());
 
-        connect_setting_eager(settings, 'string', 'filter-name', cfg_string => {
-            let filter = Filter.fromString(cfg_string);
-            if (filter !== null) {
-                this.update_filter(filter);
-            }
-        });
+        destroyer.settings_proxy(settings).connect_eager('filter-name', 'string',
+            cfg_string => {
+                let filter = Filter.fromString(cfg_string);
+                if (filter !== null) {
+                    this.update_filter(filter);
+                }
+            });
     }
 
     destroy() {
@@ -388,6 +376,9 @@ class FilterConfigMenu {
 // Manual memory management in GC languages isn't normal. But on projects with
 // names that start with "G", it is. Projects with names that start with "G":
 // not even once.
+
+// A big bucket to dunp things that need destroy() into. Giving things names and
+// cleaning them up explicitly is for suckers.
 class DestroyAllTheThings {
     constructor() {
         this.objects = [];
@@ -410,5 +401,58 @@ class DestroyAllTheThings {
             this.objects.push(obj);
         }
         return obj;
+    }
+
+    connect(instance, signal, callback) {
+        const handler_id = instance.connect(signal, callback);
+        this.add(new Disconnecter(instance, handler_id));
+        return handler_id;
+    }
+
+    settings_proxy(settings) {
+        return new SettingsProxy(this, settings);
+    }
+}
+
+// Connect to settings change events and disconnect automatically.
+class SettingsProxy {
+    constructor(destroyer, settings) {
+        this.destroyer = destroyer;
+        this.settings = settings;
+    }
+
+    _connect_impl(name, type_name, callback, eager) {
+        const getter = this.settings[`get_${type_name}`];
+
+        const handler_id = this.destroyer.connect(this.settings,
+            `changed::${name}`,
+            (s, k) => callback(getter.call(s, k)));
+
+        const value = getter.call(this.settings, name);
+        if (eager) {
+            callback(value);
+        }
+
+        return handler_id;
+    }
+
+    connect_eager(name, type_name, callback) {
+        return this._connect_impl(name, type_name, callback, true);
+    }
+
+    connect(name, type_name, callback) {
+        return this._connect_impl(name, type_name, callback, false);
+    }
+}
+
+// Disconnect automatically from connected signals
+class Disconnecter {
+    constructor(instance, handler_id) {
+        this.instance = instance;
+        this.handler_id = handler_id;
+    }
+
+    destroy() {
+        this.instance.disconnect(this.handler_id);
     }
 }
