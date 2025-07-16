@@ -15,13 +15,13 @@ export const FilterMode = {
         name: _ => _('Color Blindness Correction'),
         cfgString: 'correction',
         isColorBlindness: true,
-        properties: { isSimulation: false },
+        properties: { isCorrection: true },
     },
     SIMULATION: {
         name: _ => _('Color Blindness Simulation'),
         cfgString: 'simulation',
         isColorBlindness: true,
-        properties: { isSimulation: true },
+        properties: { isCorrection: false },
     },
     EFFECT: {
         name: _ => _('Other Effects'),
