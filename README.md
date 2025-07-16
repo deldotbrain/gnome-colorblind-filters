@@ -29,11 +29,16 @@ To install, fetch the source and run `make install`:
 Then, either reload GNOME Shell (X11 only; press Alt+F2 and enter "r") or log
 out and back in (X11 and Wayland) to load the extension.
 
-## "Quick" Start
+## Quick Start
 
 Once installed, a new button will appear in the Quick Settings menu. Clicking
 it toggles the currently-selected filter, and opening it reveals configuration
 options.
+
+For correcting color blindness, the defaults should be pretty reasonable, just
+pick your color blindness type from the menu and turn the filter on and adjust
+the strength slider until things look okay. If nothing looks good, or if you
+just like to tinker, try changing the algorithm (see below).
 
 ## Other Setup Instructions
 
@@ -69,8 +74,8 @@ and
 ## Filter Algorithm Descriptions
 
 This extension includes many simulation and correction algorithms. They range
-in quality, complexity, and of course, each user will have their own preference
-for which algorithm works "best".
+in quality and complexity, and of course, each user will have their own
+preference for which algorithm works "best".
 
 As general guidelines:
 
@@ -106,7 +111,7 @@ lost in the process is spread over the unaffected cones.
 
 ### "Daltonize"
 
-The same filters as "AOSP", but with a better choice of color space transform
+The same filters as "Android", but with a better choice of color space transform
 that (in the developer's opinion) makes them look better. Most other
 daltonization filters work very similarly.
 
