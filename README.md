@@ -87,12 +87,25 @@ As general guidelines:
   blindness types. Check out [this
   issue](https://github.com/deldotbrain/gnome-colorblind-filters/issues/2) if
   you'd like to help fix that!
+- "GdH's Filters" are the filters that the original extension provides. Many
+  people like them.
 - "Daltonize" is more or less the same algorithm used by most other
   simulation/correction filters.
 - "Android" is the slightly funky version of "Daltonize" used by Android. [The
   developer thinks that's a bug in Android, and originally started this project
   to prove
   it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1).
+
+### "GdH's Filters"
+
+These are the daltonization filters used by the original Colorblind Filters
+extension. They use a lot of magic numbers whose provenance isn't clear to me,
+so I can't comment on how they really work, except to say that they're
+superficially similar to other daltonization algorithms. GdH says he focused on
+color differentiability when designing them.
+
+These filters also have an option for "high contrast" mode for protanopia and
+deuteranopia, similar to the original extension.
 
 ### "Android"
 
