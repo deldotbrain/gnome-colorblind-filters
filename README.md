@@ -36,7 +36,7 @@ it toggles the currently-selected filter, and opening it reveals configuration
 options.
 
 For correcting color blindness, the defaults should be pretty reasonable, just
-pick your color blindness type from the menu and turn the filter on and adjust
+pick your color blindness type from the menu, turn the filter on, and adjust
 the strength slider until things look okay. If nothing looks good, or if you
 just like to tinker, try changing the algorithm (see below).
 
@@ -92,9 +92,59 @@ As general guidelines:
 - "Daltonize" is more or less the same algorithm used by most other
   simulation/correction filters.
 - "Android" is the slightly funky version of "Daltonize" used by Android. [The
-  developer thinks that's a bug in Android, and originally started this project
-  to prove
-  it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1).
+  developer thinks the funkiness is a bug in Android, and originally started
+  this project to prove
+  it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1)
+
+### "Opponent Color Solver" Filters
+
+These filters are radically different from anything else in this extension, and
+from any other filter I've seen in the wild. Whether that's a good thing or not
+remains to be seen.
+
+These filters operate in
+[opponent-color](https://foundationsofvision.stanford.edu/chapter-9-color/#Opponent-Colors)
+space and are built on the work of [Machado et
+al.](https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html)
+to simulate color blindness. While their proposed simulation isn't considered
+to be as accurate as others, its use of opponent color makes a very different
+correction approach possible.
+
+The correction filters search RGB space for a color which the colorblind
+observer is expected to perceive as the original color was intended. To do
+this, they define a cost function to describe the "badness" of a chosen color
+based on its distance from the intended color in simulated opponent-color space
+and from the original color in RGB space. They search near the original color
+using a couple iterations of gradient descent to find an RGB value with minimal
+cost and display it.
+
+This approach is necessarily much more expensive than other filters (probably
+by a factor of 20-30, though it still doesn't add up to much actual
+utilization), but yields results that (at least to my tritanomalous eyes) look
+more natural. While there are probably some optimizations that could be made to
+the filter algorithm, this filter will always be more complex to execute than
+daltonization, and daltonization (and linear filters more generally)
+fundamentally cannot make the same modifications that this filter does. Is it
+worth it? You decide.
+
+The simulation filters apply a trivial linear transformation (inverse of ideal
+RGB-to-opponent transform multiplied by simulated RGB-to-opponent transform).
+They don't do any fancy cost function optimization on the assumption that color
+blindness only ever reduces the gamut, so the result of a linear transformation
+will always be within the RGB gamut. These filters aren't (currently) terribly
+accurate, but they provide valuable insight into how the OCS filters understand
+color blindness and what they're actually trying to correct for. Note that
+although much of the approach used by these filters is similar to the work of
+Machado et al., they are **not** the same simulation and shouldn't be taken as
+a representation of their work!
+
+These filters are still very much under development. I think the correction
+filters already look better than other filters, but there are still many
+improvements I'd like to make. Among other things, I'd like to significantly
+increase their maximum strength, fix the green tint and decrease of red and
+green brightness that the tritanomaly filter causes, etc. If you've actually
+tried them, I want to know how they work for you! Open an issue to discuss,
+send me an email (the address on my commits works), or whatever.
 
 ### "GdH's Filters"
 
@@ -151,56 +201,6 @@ constant when simulating, changing the appearance of greens considerably.
 The "Modified" transform holds the difference between red and green constant,
 balancing the change in their appearance between them. To my eyes, this looks
 less weird, but I don't have any evidence to say that it's more accurate.
-
-### "Opponent Color Solver" Filters
-
-These filters are radically different from anything else in this extension, and
-from any other filter I've seen in the wild. Whether that's a good thing or not
-remains to be seen.
-
-These filters operate in
-[opponent-color](https://foundationsofvision.stanford.edu/chapter-9-color/#Opponent-Colors)
-space and are built on the work of [Machado et
-al.](https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html)
-to simulate color blindness. While their proposed simulation isn't considered
-to be as accurate as others, its use of opponent color makes a very different
-correction approach possible.
-
-The correction filters search RGB space for a color which the colorblind
-observer is expected to perceive as the original color was intended. To do
-this, they define a cost function to describe the "badness" of a chosen color
-based on its distance from the intended color in simulated opponent-color space
-and from the original color in RGB space. They search near the original color
-using a couple iterations of gradient descent to find an RGB value with minimal
-cost and display it.
-
-This approach is necessarily much more expensive than other filters (probably
-by a factor of 20-30, though it still doesn't add up to much actual
-utilization), but yields results that (at least to my tritanomalous eyes) look
-more natural. While there are probably some optimizations that could be made to
-the filter algorithm, this filter will always be more complex to execute than
-daltonization, and daltonization (and linear filters more generally)
-fundamentally cannot make the same modifications that this filter does. Is it
-worth it? You decide.
-
-The simulation filters apply a trivial linear transformation (inverse of ideal
-RGB-to-opponent transform multiplied by simulated RGB-to-opponent transform).
-They don't do any fancy cost function optimization on the assumption that color
-blindness only ever reduces the gamut, so the result of a linear transformation
-will always be within the RGB gamut. These filters aren't (currently) terribly
-accurate, but they provide valuable insight into how the OCS filters understand
-color blindness and what they're actually trying to correct for. Note that
-although much of the approach used by these filters is similar to the work of
-Machado et al., they are **not** the same simulation and shouldn't be taken as
-a representation of their work!
-
-These filters are still very much under development. I think the correction
-filters already look better than other filters, but there are still many
-improvements I'd like to make. Among other things, I'd like to significantly
-increase their maximum strength, fix the green tint and decrease of red and
-green brightness that the tritanomaly filter causes, etc. If you've actually
-tried them, I want to know how they work for you! Open an issue to discuss,
-send me an email (the address on my commits works), or whatever.
 
 ## Contribution
 Unless your contribution is specific to the filter algorithms, please consider
