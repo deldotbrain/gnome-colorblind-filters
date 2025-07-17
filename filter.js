@@ -342,7 +342,7 @@ export class Filter {
         return fields.join('-');
     }
 
-    get effect() {
+    get effect_class() {
         if (this.mode === FilterMode.CORRECTION) {
             return this.algorithm.correctionEffect;
         } else if (this.mode === FilterMode.SIMULATION) {

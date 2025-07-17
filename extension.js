@@ -37,7 +37,7 @@ export default class ColorblindFilters extends Extension {
             : this.metadata.name;
 
         this.destroyer = new DestroyAllTheThings();
-        this.destroyer.construct(FilterManager, this.metadata.name, settings);
+        this.destroyer.construct(FilterManager, settings);
         const indicator = this.destroyer.construct(FilterIndicator, settings);
         indicator.attach(new FilterQuickSettingsMenu(_, title, settings));
         indicator.register();
@@ -49,13 +49,13 @@ export default class ColorblindFilters extends Extension {
 }
 
 class FilterManager {
-    constructor(effect_name, settings) {
-        this.effect_name = effect_name;
+    constructor(settings) {
         this.settings = settings;
         this.destroyer = new DestroyAllTheThings();
         const settings_proxy = this.destroyer.settings_proxy(settings);
 
         this.effect_cache = new Map();
+        this.effect = null;
 
         this.filter = null;
         this.configured_filter = null;
@@ -72,8 +72,8 @@ class FilterManager {
         this.settings = null;
         this.destroyer.destroy();
 
-        if (this.filter !== null) {
-            Main.uiGroup.remove_effect_by_name(this.effect_name);
+        if (this.effect) {
+            Main.uiGroup.remove_effect(this.effect);
         }
     }
 
@@ -81,31 +81,33 @@ class FilterManager {
         const configured = this.settings.get_boolean('filter-active')
             ? this.configured_filter : null;
 
-        const enabled = configured !== null;
-        const changed_effect = this.filter?.effect !== configured?.effect;
-
-        if (changed_effect) {
-            Main.uiGroup.remove_effect_by_name(this.effect_name);
-        }
-
-        if (enabled) {
+        let effect = null;
+        if (configured) {
             configured.factor = this.settings.get_double('filter-strength');
-
-            const effect = this.get_effect(configured);
-            if (changed_effect) {
-                Main.uiGroup.add_effect_with_name(this.effect_name, effect);
-            }
+            effect = configured ? this.get_effect(configured) : null;
         }
 
-        if (enabled || changed_effect) {
+        // get_effect() will return the existing effect if it's the same
+        if (effect !== this.effect) {
+            if (this.effect) {
+                Main.uiGroup.remove_effect(this.effect);
+            }
+
+            if (effect) {
+                Main.uiGroup.add_effect(effect);
+            }
+
+            this.effect = effect;
+
+            Main.uiGroup.queue_redraw();
+        } else if (effect) {
+            // Just a property change; request a redraw.
             Main.uiGroup.queue_redraw();
         }
-
-        this.filter = configured;
     }
 
     get_effect(filter) {
-        const effect_type = filter.effect;
+        const effect_type = filter.effect_class;
 
         // Avoid a warning from GNOME Shell about creating an excessive
         // number of shaders by caching them.
