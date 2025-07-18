@@ -81,13 +81,13 @@ class FilterManager {
         const configured = this.settings.get_boolean('filter-active')
             ? this.configured_filter : null;
 
-        let effect = null;
-        if (configured) {
+        const effect = configured ? this.get_effect(configured) : null;
+        if (effect) {
             configured.factor = this.settings.get_double('filter-strength');
-            effect = configured ? this.get_effect(configured) : null;
+            effect.updateEffect(configured.properties);
         }
 
-        // get_effect() will return the existing effect if it's the same
+        // get_effect() will return the existing effect if it's the same type
         if (effect !== this.effect) {
             if (this.effect) {
                 Main.uiGroup.remove_effect(this.effect);
@@ -96,14 +96,13 @@ class FilterManager {
             if (effect) {
                 Main.uiGroup.add_effect(effect);
             }
+        }
 
-            this.effect = effect;
-
-            Main.uiGroup.queue_redraw();
-        } else if (effect) {
-            // Just a property change; request a redraw.
+        if (effect || this.effect) {
             Main.uiGroup.queue_redraw();
         }
+
+        this.effect = effect;
     }
 
     get_effect(filter) {
@@ -111,12 +110,11 @@ class FilterManager {
 
         // Avoid a warning from GNOME Shell about creating an excessive
         // number of shaders by caching them.
-        const cached = this.effect_cache.get(effect_type);
+        const cached = this.effect_cache.get(filter.effect_class);
         if (cached !== undefined) {
-            cached.updateEffect(filter.properties);
             return cached;
         } else {
-            const effect = new effect_type(filter.properties);
+            const effect = new effect_type();
             this.effect_cache.set(effect_type, effect);
             return effect;
         }

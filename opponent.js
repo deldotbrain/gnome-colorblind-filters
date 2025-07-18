@@ -31,7 +31,7 @@
 'use strict';
 
 import GObject from 'gi://GObject';
-import Clutter from 'gi://Clutter';
+import { ColorblindFilter } from './shader_base.js';
 import * as M from './matrix.js';
 
 // Which LMS-to-Opponent transform to use; doesn't seem to make much difference
@@ -118,36 +118,47 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
         condition(M.getRow3(r2o_scaled, 2)));
 }
 
-// Helpers for getting matrix data into shader uniforms. Clutter has aggregate
-// data types for this, but they can't be created from GJS. :(
-function updateUniform(effect, name, val) {
-    for (const i of val.keys()) {
-        const gv = new GObject.Value();
-        gv.init(GObject.TYPE_FLOAT);
-        gv.set_float(val[i]);
-
-        effect.set_uniform_value(name + i.toString(), gv);
-    }
-}
-function uniformDecl(name, size = 9) {
-    return Array(size).fill().map((_, i) => `uniform float ${name}${i}`).join(';\n');
-}
-function uniformUse(name, type = 'mat3', size = 9) {
-    return `${type}(${Array(size).fill().map((_, i) => `${name}${i}`).join(', ')})`;
-}
-function uniformDefn(name, type = 'mat3', size = 9) {
-    return `${type} ${name} = ${uniformUse(name, type, size)}`;
-}
-
 export const OpponentCorrectionEffect = GObject.registerClass(
-    class OpponentCorrectionEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
+    class OpponentCorrectionEffect extends ColorblindFilter {
+        _init() {
+            super._init(
+                'linear',
+                {
+                    rgb2ideal: 'mat3',
+                    rgb2sim: 'mat3',
+                    rgb2const: 'mat3',
+                    rgb2var: 'mat3',
+                    rgb_weights: 'vec3',
+                    opp_weights: 'vec3',
+                },
+                `
+                const int step_count = 5;
 
-            this.set_shader_source(OpponentCorrectionEffect.getSource());
-            this.set_uniform_value('tex', 0);
+                vec3 orig_rgb = rgb;
+                vec3 opp_ideal = rgb2ideal * rgb;
+                vec3 grad_const = rgb2const * rgb;
 
-            this.updateEffect(properties);
+                for (int i = 0; i < step_count; i++) {
+                    // evaluate gradient at current rgb coordinates
+                    vec3 grad = rgb2var * rgb + grad_const;
+
+                    // line search for zero derivative of cost
+                    vec3 sim_grad = rgb2sim * grad;
+                    float num =
+                        dot(rgb_weights, (rgb - orig_rgb) * grad) +
+                        dot(opp_weights * sim_grad, rgb2sim * rgb - opp_ideal);
+                    float den =
+                        dot(rgb_weights, grad * grad) +
+                        dot(opp_weights, sim_grad * sim_grad);
+
+                    // gradient descent
+                    if (den == 0) {
+                        break;
+                    }
+                    float step = num / den;
+                    rgb -= step * grad;
+                }
+                `);
         }
 
         updateEffect(properties) {
@@ -185,99 +196,43 @@ export const OpponentCorrectionEffect = GObject.registerClass(
             const rgb2ideal = getRGB2Opp();
             const rgb2sim = getRGB2Opp(whichCone, factor);
 
-            // As a minor optimization, the constant half of the partial
-            // derivatives in the gradient are calculated only once.
-            updateUniform(this, 'rgb2const', M.scale3(-2,
-                M.add3x3(
-                    M.diagonal(rgb_weights),
-                    M.mult3x3(
-                        M.transpose(rgb2sim),
+            this.set_uniforms({
+                // As a minor optimization, the constant half of the partial
+                // derivatives in the gradient are calculated only once.
+                rgb2const: M.scale3(-2,
+                    M.add3x3(
+                        M.diagonal(rgb_weights),
                         M.mult3x3(
-                            M.diagonal(opp_weights),
-                            rgb2ideal)))));
-            // The variable half still needs to be calculated for every
-            // iteration.
-            updateUniform(this, 'rgb2var', M.scale3(2,
-                M.add3x3(
-                    M.diagonal(rgb_weights),
-                    M.mult3x3(
-                        M.transpose(rgb2sim),
+                            M.transpose(rgb2sim),
+                            M.mult3x3(
+                                M.diagonal(opp_weights),
+                                rgb2ideal)))),
+
+                // The variable half still needs to be calculated for every
+                // iteration.
+                rgb2var: M.scale3(2,
+                    M.add3x3(
+                        M.diagonal(rgb_weights),
                         M.mult3x3(
-                            M.diagonal(opp_weights),
-                            rgb2sim)))));
+                            M.transpose(rgb2sim),
+                            M.mult3x3(
+                                M.diagonal(opp_weights),
+                                rgb2sim)))),
 
-            // The shader needs to know a lot about the cost function to solve
-            // its derivative for zero.
-            updateUniform(this, 'rgb2ideal', rgb2ideal);
-            updateUniform(this, 'rgb2sim', rgb2sim);
-            updateUniform(this, 'rgb_weights', rgb_weights);
-            updateUniform(this, 'opp_weights', opp_weights);
-        }
-
-        vfunc_get_static_shader_source() {
-            return OpponentCorrectionEffect.getSource();
-        }
-
-        static getSource() {
-            return `
-                uniform sampler2D tex;
-                const int step_count = 5;
-                ${uniformDecl('rgb2ideal')};
-                ${uniformDecl('rgb2sim')};
-                ${uniformDecl('rgb2const')};
-                ${uniformDecl('rgb2var')};
-                ${uniformDecl('rgb_weights', 3)};
-                ${uniformDecl('opp_weights', 3)};
-
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-
-                    ${uniformDefn('rgb_weights', 'vec3', 3)};
-                    ${uniformDefn('opp_weights', 'vec3', 3)};
-
-                    ${uniformDefn('rgb2sim')};
-                    vec3 opp_ideal = ${uniformUse('rgb2ideal')} * c.rgb;
-
-                    ${uniformDefn('rgb2var')};
-                    vec3 grad_const = ${uniformUse('rgb2const')} * c.rgb;
-
-                    vec3 rgb = c.rgb;
-                    for (int i = 0; i < step_count; i++) {
-                        // evaluate gradient at current rgb coordinates
-                        vec3 grad = rgb2var * rgb + grad_const;
-
-                        // line search for zero derivative of cost
-                        vec3 sim_grad = rgb2sim * grad;
-                        float num =
-                            dot(rgb_weights, (rgb - c.rgb) * grad) +
-                            dot(opp_weights * sim_grad, rgb2sim * rgb - opp_ideal);
-                        float den =
-                            dot(rgb_weights, grad * grad) +
-                            dot(opp_weights, sim_grad * sim_grad);
-
-                        // gradient descent
-                        if (den == 0) {
-                            break;
-                        }
-                        float step = num / den;
-                        rgb -= step * grad;
-                    }
-
-                    cogl_color_out = vec4(rgb, c.a);
-                }
-                `;
+                // The shader needs to know a lot about the cost function to
+                // solve its derivative for zero.
+                rgb2ideal: rgb2ideal,
+                rgb2sim: rgb2sim,
+                rgb_weights: rgb_weights,
+                opp_weights: opp_weights,
+            });
         }
     });
 
 export const OpponentSimulationEffect = GObject.registerClass(
-    class OpponentSimulationEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
-
-            this.set_shader_source(OpponentSimulationEffect.getSource());
-            this.set_uniform_value('tex', 0);
-
-            this.updateEffect(properties);
+    class OpponentSimulationEffect extends ColorblindFilter {
+        _init() {
+            super._init('linear', { adjustment: 'mat3' }, 'rgb = adjustment * rgb;');
         }
 
         updateEffect(properties) {
@@ -286,26 +241,9 @@ export const OpponentSimulationEffect = GObject.registerClass(
             const rgb2ideal = getRGB2Opp();
             const rgb2sim = getRGB2Opp(whichCone, factor);
 
-            updateUniform(this, 'adjustment',
+            this.set_uniform('adjustment',
                 M.mult3x3(
                     M.inverse3x3(rgb2ideal),
                     rgb2sim));
-        }
-
-        vfunc_get_static_shader_source() {
-            return OpponentSimulationEffect.getSource();
-        }
-
-        // FIXME: This is effectively the same code as DaltonismEffect. Share it.
-        static getSource() {
-            return `
-                uniform sampler2D tex;
-                ${uniformDecl('adjustment')};
-
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                    cogl_color_out = vec4(${uniformUse('adjustment')} * c.rgb, c.a);
-                }
-            `;
         }
     });

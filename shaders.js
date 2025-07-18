@@ -11,16 +11,9 @@
 
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
+import { ColorblindFilter } from './shader_base.js';
 import * as Daltonizer from './daltonizer.js';
 import * as M from './matrix.js';
-
-function set_uniform_float(effect, name, value) {
-    const gv = new GObject.Value();
-    gv.init(GObject.TYPE_FLOAT);
-    gv.set_float(value);
-
-    effect.set_uniform_value(name, gv);
-}
 
 export const DesaturateEffect = GObject.registerClass(
     class DesaturateEffect extends Clutter.DesaturateEffect {
@@ -30,156 +23,79 @@ export const DesaturateEffect = GObject.registerClass(
     });
 
 export const InversionEffect = GObject.registerClass(
-    class InversionEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
-            this.updateEffect(properties);
+    class InversionEffect extends ColorblindFilter {
+        _init() {
+            // Leaving this in sRGB since it does its own gamma shenanigans
+            super._init('srgb', { INVERSION_MODE: 'int' }, `
+                float alpha = _c.a;
 
-            this.set_shader_source(InversionEffect.getSource());
+                if (INVERSION_MODE < 2) {
+                    /* INVERSION_MODE ? shifted : non-shifted */
+                    float mode = float(INVERSION_MODE);
+                    float white_bias = mode * alpha * 0.02;
+                    float m = 1.0 + white_bias;
+                    float shift = white_bias + alpha - min(rgb.r, min(rgb.g, rgb.b)) - max(rgb.r, max(rgb.g, rgb.b));
+                    rgb = vec3(((shift + rgb.r) / m),
+                            ((shift + rgb.g) / m),
+                            ((shift + rgb.b) / m));
+                } else if (INVERSION_MODE == 2) {
+                    rgb = vec3(alpha * 1.0 - rgb.r, alpha * 1.0 - rgb.g, alpha * 1.0 - rgb.b);
+                }
+
+                // gamma has to be compensated to maintain perceived differences in lightness on dark and light ends of the lightness scale
+                float gamma = 1.8;
+                rgb = pow(rgb, vec3(1.0/gamma));
+                `);
         }
 
         updateEffect(properties) {
-            this.set_uniform_value('tex', 0);
-            this.set_uniform_value('INVERSION_MODE', properties.mode);
-        }
-
-        vfunc_get_static_shader_source() {
-            return InversionEffect.getSource();
-        }
-
-        static getSource() {
-            return `
-                uniform sampler2D tex;
-                uniform int INVERSION_MODE;
-                // Modes: 0 = Lightness
-                //        1 = Lightness - white bias
-                //        2 = Color
-
-                // based on shift_whitish.glsl https://github.com/vn971/linux-color-inversion
-
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                    if (INVERSION_MODE < 2) {
-                        /* INVERSION_MODE ? shifted : non-shifted */
-                        float mode = float(INVERSION_MODE);
-                        float white_bias = mode * c.a * 0.02;
-                        float m = 1.0 + white_bias;
-                        float shift = white_bias + c.a - min(c.r, min(c.g, c.b)) - max(c.r, max(c.g, c.b));
-                        c = vec4(  ((shift + c.r) / m),
-                                ((shift + c.g) / m),
-                                ((shift + c.b) / m),
-                                c.a);
-
-                    } else if (INVERSION_MODE == 2) {
-                        c = vec4(c.a * 1.0 - c.r, c.a * 1.0 - c.g, c.a * 1.0 - c.b, c.a);
-                    }
-
-                    // gamma has to be compensated to maintain perceived differences in lightness on dark and light ends of the lightness scale
-                    float gamma = 1.8;
-                    c.rgb = pow(c.rgb, vec3(1.0/gamma));
-
-                    cogl_color_out = c;
-                }
-            `;
+            this.set_uniform('INVERSION_MODE', properties.mode);
         }
     });
 
 export const ColorMixerEffect = GObject.registerClass(
-    class ColorMixerEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
-            // 0 - GRB, 1 - BRG
-            this.updateEffect(properties);
-
-            this.set_shader_source(ColorMixerEffect.getSource());
+    class ColorMixerEffect extends ColorblindFilter {
+        _init() {
+            // Used sRGB upstream, so this will look a little different
+            super._init('linear', { MIX_MODE: 'int', STRENGTH: 'float' }, `
+                vec3 m;
+                if (MIX_MODE == 0) {
+                    m = vec3(rgb.b, rgb.r, rgb.g);
+                } else if (MIX_MODE == 1) {
+                    m = vec3(rgb.g, rgb.b, rgb.r);
+                }
+                rgb = mix(rgb, m, STRENGTH);
+                `);
         }
 
         updateEffect(properties) {
-            this.set_uniform_value('tex', 0);
-            this.set_uniform_value('MIX_MODE', properties.mode);
-            set_uniform_float(this, 'STRENGTH', properties.factor);
-        }
-
-        vfunc_get_static_shader_source() {
-            return ColorMixerEffect.getSource();
-        }
-
-        static getSource() {
-            return `
-                uniform sampler2D tex;
-                uniform int MIX_MODE;
-                uniform float STRENGTH;
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                    vec4 m;
-                    if (MIX_MODE == 0) {
-                        m = vec4(c.b, c.r, c.g, c.a);
-                    } else if (MIX_MODE == 1) {
-                        m = vec4(c.g, c.b, c.r, c.a);
-                    }
-                    c = m * STRENGTH + c * (1.0 - STRENGTH);
-                    cogl_color_out = c;
-                }
-            `;
+            this.set_uniforms({
+                // 0 - GRB, 1 - BRG
+                MIX_MODE: properties.mode,
+                STRENGTH: properties.factor,
+            });
         }
     });
 
 export const DaltonismEffect = GObject.registerClass(
-    class DaltonismEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
-            this.updateEffect(properties);
-
-            this.set_shader_source(DaltonismEffect.getSource());
+    class DaltonismEffect extends ColorblindFilter {
+        _init() {
+            super._init('linear', { correction: 'mat3' }, `rgb = correction * rgb;`);
         }
 
         updateEffect(properties) {
-            this.set_uniform_value('tex', 0);
-            const correction = Daltonizer.getCorrection3x3(properties);
-            // None of Clutter's aggregate data types can be used from GJS, so:
-            for (let i = 0; i < 9; i++) {
-                set_uniform_float(this, `CORRECTION${i}`, correction[i]);
-            }
-        }
-
-        vfunc_get_static_shader_source() {
-            return DaltonismEffect.getSource();
-        }
-
-        static getSource() {
-            const declareCorr = Array(9).fill().map((_, i) => `uniform float CORRECTION${i};`).join('\n');
-            const useCorr = Array(9).fill().map((_, i) => `CORRECTION${i}`).join(', ');
-            return `
-                ${declareCorr}
-                uniform sampler2D tex;
-
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                    cogl_color_out = vec4(mat3(${useCorr}) * c.rgb, c.a);
-                }
-            `;
+            this.set_uniform('correction', Daltonizer.getCorrection3x3(properties));
         }
     });
 
 export const UpstreamDaltonismEffect = GObject.registerClass(
-    class UpstreamDaltonismEffect extends Clutter.ShaderEffect {
-        _init(properties) {
-            super._init();
-
-            this.set_shader_source(UpstreamDaltonismEffect.getSource());
-
-            this.set_uniform_value('tex', 0);
-            this.updateEffect(properties);
+    class UpstreamDaltonismEffect extends ColorblindFilter {
+        _init() {
+            super._init('srgb', { correction: 'mat3' }, `rgb = correction * rgb;`);
         }
 
         updateEffect(properties) {
-            this._mode = properties.mode;
-            this._strength = properties.factor;
-
-            const correction = this.getCorrectionMatrix(properties);
-            for (let i = 0; i < 9; i++) {
-                set_uniform_float(this, `CORRECTION${i}`, correction[i]);
-            }
+            this.set_uniform('correction', this.getCorrectionMatrix(properties));
         }
 
         // Upstream does this in the shader, but we have a janky matrix library
@@ -299,24 +215,5 @@ export const UpstreamDaltonismEffect = GObject.registerClass(
                         correction,
                         M.scale3x3(factor, rgb2diff)));
             }
-        }
-
-        vfunc_get_static_shader_source() {
-            return UpstreamDaltonismEffect.getSource();
-        }
-
-        // FIXME: share with DaltonismEffect since it's exactly the same
-        static getSource() {
-            const declareCorr = Array(9).fill().map((_, i) => `uniform float CORRECTION${i};`).join('\n');
-            const useCorr = Array(9).fill().map((_, i) => `CORRECTION${i}`).join(', ');
-            return `
-                ${declareCorr}
-                uniform sampler2D tex;
-
-                void main() {
-                    vec4 c = texture2D(tex, cogl_tex_coord_in[0].st);
-                    cogl_color_out = vec4(mat3(${useCorr}) * c.rgb, c.a);
-                }
-            `;
         }
     });
