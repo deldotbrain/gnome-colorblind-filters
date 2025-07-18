@@ -94,14 +94,21 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // Use L+M+S for luminance. With factor = 0, rgb2lms is normalized so that
     // this is equivalent to R+G+B, but this allows the simulated change in
     // sensitivity to be applied to luminance as well.
-    const rgb2opp = M.mult3x3(
-        M.setRow3(lms2opp, 0, [1, 1, 1]),
-        sim_rgb2lms);
+    const mod_lms2opp = M.setRow3(lms2opp, 0, [1, 1, 1]);
+    const rgb2opp = M.mult3x3(mod_lms2opp, sim_rgb2lms);
 
-    // Scale rows so that each opponent component has a range of 1
+    // Scale rows so that each opponent component has a range of 1, sort of.
+    // Normalizing the simulated luma row avoids an erroneous correction for
+    // unchanged luma, but re-using the chroma normalization for typical cones
+    // properly simulates the loss of contrast and encourages an aggressive
+    // correction. At least for tritan, that means dark blues and light yellows
+    // are more vibrant, which I like.
+    const nom_rgb2opp = whichCone === -1 ? rgb2opp
+        : M.setRow3(M.mult3x3(mod_lms2opp, rgb2lms),
+            0, M.getRow3(rgb2opp, 0));
     const r2o_scaled = M.mult3x3(
         M.diagonal(M.gen3(i =>
-            1 / M.getRow3(rgb2opp, i).reduce((a, v) => a + Math.abs(v), 0))),
+            1 / M.getRow3(nom_rgb2opp, i).reduce((a, v) => a + Math.abs(v), 0))),
         rgb2opp);
 
     // Offset luma rows so that luma components are 0 for R=G=B (i.e. grays).
