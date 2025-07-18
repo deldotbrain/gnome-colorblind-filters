@@ -15,6 +15,8 @@
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
@@ -54,11 +56,34 @@ class FilterManager {
         this.destroyer = new DestroyAllTheThings();
         const settings_proxy = this.destroyer.settings_proxy(settings);
 
+        // all the shaders that we've applied since enabling
         this.effect_cache = new Map();
-        this.effect = null;
-
-        this.filter = null;
+        // the effect that's currently applied
+        this.current_effect = null;
+        // the actor (uiGroup or screen magnifier) that we want to clone
+        this.current_source = null;
+        // the clone of current_actor, if necessary
+        this.actor_clone = null;
+        // the user's filter configuration
         this.configured_filter = null;
+
+        // Take great pains to watch for the screen magnifier activating. If it
+        // does, we need to detach our clone from Main.uiGroup and attach our
+        // effect directly to its actor instead.
+        const global_stage = Shell.Global.get().stage;
+        this.destroyer.connect(global_stage, 'child-added',
+            (_stage, actor) => this.a_wild_magnifier_appeared(actor));
+
+        // It's possible that this extension is enabling while the screen
+        // magnifier is already running. Find it and attach.
+        let initial_source = Main.uiGroup;
+        for (const child of global_stage.get_children()) {
+            if (FilterManager.is_magnifier(child)) {
+                initial_source = child;
+                break;
+            }
+        }
+        this.update_clone(initial_source);
 
         settings_proxy.connect('filter-active', 'boolean', () => this.update_filter());
         settings_proxy.connect('filter-strength', 'double', () => this.update_filter());
@@ -69,12 +94,9 @@ class FilterManager {
     }
 
     destroy() {
+        this.destroy_actor_clone();
         this.settings = null;
         this.destroyer.destroy();
-
-        if (this.effect) {
-            Main.uiGroup.remove_effect(this.effect);
-        }
     }
 
     update_filter() {
@@ -88,21 +110,99 @@ class FilterManager {
         }
 
         // get_effect() will return the existing effect if it's the same type
-        if (effect !== this.effect) {
-            if (this.effect) {
-                Main.uiGroup.remove_effect(this.effect);
+        if (effect !== this.current_effect) {
+            // Always apply effects to a Clutter.Clone; see discussion in
+            // https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
+            //
+            // In theory, we could apply directly to the screen magnifier, but
+            // when it destroys its actors, it poisons the attached effects in
+            // ways that can crash gnome-shell if they're reused.
+            const actor = this.ensure_actor_clone();
+
+            if (this.current_effect) {
+                actor.remove_effect(this.current_effect);
             }
 
             if (effect) {
-                Main.uiGroup.add_effect(effect);
+                actor.add_effect(effect);
+                effect.queue_repaint();
+            } else {
+                this.destroy_actor_clone();
             }
+        } else if (effect) {
+            effect.queue_repaint();
         }
 
-        if (effect || this.effect) {
-            Main.uiGroup.queue_redraw();
+        this.current_effect = effect;
+    }
+
+    static is_magnifier(actor) {
+        return actor.style_class?.split(' ').some(s => s === 'magnifier-zoom-region');
+    }
+
+    // Screen magnifier tool displays on top of our effects. When it starts, we
+    // need to attach to its output instead.
+    a_wild_magnifier_appeared(child) {
+        // I wonder if it makes sense to do this will *all* windows that aren't
+        // our own? Seems dangerous, especially if someone else has the same
+        // idea.
+        if (FilterManager.is_magnifier(child)) {
+            this.update_clone(child);
+
+            // Watch for this child to be removed. Watching for the destroy
+            // event seems more reliable (i.e. works at all) than watching for
+            // the child-removed event.
+            //
+            // NB: lifetimes are tricky here; the magnifier might outlive us or
+            // vice versa. Just use connectObject.
+            child.connectObject(
+                'destroy', () => {
+                    // Our clone has its source destroyed and now has a spooky
+                    // curse. We should burn it before its curse can spread.
+                    this.update_clone(Main.uiGroup);
+                },
+                this);
+        }
+    }
+
+    update_clone(source) {
+        // Create a new clone if one currently exists. Spooky things happen when
+        // screen magnifier turns off and destroys the actor that our clone is
+        // attached to. Our Clone (or our ShaderEffect, if we were foolhardy
+        // enough to attach it directly) gets a spooky curse and will sometimes
+        // crash gnome-shell if reused. Better to nuke it from orbit.
+        this.destroy_actor_clone();
+        this.current_source = source;
+        if (this.current_effect) {
+            this.ensure_actor_clone();
+        }
+    }
+
+    ensure_actor_clone() {
+        if (this.actor_clone === null) {
+            this.actor_clone = new Clutter.Clone({
+                source: this.current_source,
+                clip_to_allocation: true,
+            });
+            if (this.current_effect) {
+                this.actor_clone.add_effect(this.current_effect);
+            }
+            Shell.Global.get().stage.add_child(this.actor_clone);
         }
 
-        this.effect = effect;
+        return this.actor_clone;
+    }
+
+    destroy_actor_clone() {
+        if (this.actor_clone !== null) {
+            if (this.current_effect) {
+                this.actor_clone.remove_effect(this.current_effect);
+            }
+
+            Shell.Global.get().stage.remove_child(this.actor_clone);
+            this.actor_clone.destroy();
+            this.actor_clone = null;
+        }
     }
 
     get_effect(filter) {
@@ -479,7 +579,8 @@ class SettingsProxy {
     }
 }
 
-// Disconnect automatically from connected signals
+// Disconnect automatically from connected signals. Similar in purpose to
+// connectObject, but able to be explicitly ordered with DestroyAllTheThings.
 class Disconnecter {
     constructor(instance, handler_id) {
         this.instance = instance;
