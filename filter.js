@@ -9,6 +9,8 @@
 
 import * as Shaders from './shaders.js';
 import * as Opponent from './opponent.js';
+import getUpstreamCorrectionMatrix from './upstream-daltonism.js';
+import getDaltonizeCorrectionMatrix from './daltonizer.js';
 
 export const FilterMode = {
     CORRECTION: {
@@ -92,8 +94,11 @@ export const ColorBlindnessAlgorithm = {
         name: _ => _('Opponent Color Solver'),
         cfgString: 'ocs',
         correctionEffect: Opponent.OpponentCorrectionEffect,
-        simulationEffect: Opponent.OpponentSimulationEffect,
-        properties: {},
+        simulationEffect: Shaders.GenericLinearFilter,
+        properties: {
+            // only used for simulation
+            getCorrectionMatrix: Opponent.getSimulationMatrix,
+        },
         usesFactor: true,
         usesTritanHack: false,
         usesHighContrast: false,
@@ -101,9 +106,11 @@ export const ColorBlindnessAlgorithm = {
     GDH: {
         name: _ => _('GdH\'s Filters'),
         cfgString: 'gdh',
-        correctionEffect: Shaders.UpstreamDaltonismEffect,
-        simulationEffect: Shaders.UpstreamDaltonismEffect,
-        properties: {},
+        correctionEffect: Shaders.GenericSRGBFilter,
+        simulationEffect: Shaders.GenericSRGBFilter,
+        properties: {
+            getCorrectionMatrix: getUpstreamCorrectionMatrix,
+        },
         usesFactor: true,
         usesTritanHack: false,
         usesHighContrast: true,
@@ -111,9 +118,10 @@ export const ColorBlindnessAlgorithm = {
     ES: {
         name: _ => _('Error Steering'),
         cfgString: 'es',
-        correctionEffect: Shaders.DaltonismEffect,
+        correctionEffect: Shaders.GenericLinearFilter,
         simulationEffect: null,
         properties: {
+            getCorrectionMatrix: getDaltonizeCorrectionMatrix,
             transform: 'HPE',
             errorSteering: true,
         },
@@ -124,9 +132,10 @@ export const ColorBlindnessAlgorithm = {
     HPE: {
         name: _ => _('Daltonize'),
         cfgString: 'hpe',
-        correctionEffect: Shaders.DaltonismEffect,
-        simulationEffect: Shaders.DaltonismEffect,
+        correctionEffect: Shaders.GenericLinearFilter,
+        simulationEffect: Shaders.GenericLinearFilter,
         properties: {
+            getCorrectionMatrix: getDaltonizeCorrectionMatrix,
             transform: 'HPE',
             errorSteering: false,
         },
@@ -137,9 +146,10 @@ export const ColorBlindnessAlgorithm = {
     AOSP: {
         name: _ => _('Android'),
         cfgString: 'aosp',
-        correctionEffect: Shaders.DaltonismEffect,
-        simulationEffect: Shaders.DaltonismEffect,
+        correctionEffect: Shaders.GenericLinearFilter,
+        simulationEffect: Shaders.GenericLinearFilter,
         properties: {
+            getCorrectionMatrix: getDaltonizeCorrectionMatrix,
             transform: 'AOSP',
             errorSteering: false,
         },

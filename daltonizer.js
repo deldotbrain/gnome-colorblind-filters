@@ -100,7 +100,7 @@ function getSteeringMatrix(directionVec, primaryError, factor) {
     return M.scale3x3(factor * whiteMag / errorMag, r);
 }
 
-export function getCorrection3x3(properties) {
+export default function getCorrectionMatrix(properties) {
     const { whichCone, transform, isCorrection, factor, tritanHack, errorSteering } = properties;
     const pick = (p, d, t) => [p, d, t][whichCone];
     const { rgb2lms, lms2rgb } = transforms[transform];

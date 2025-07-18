@@ -229,21 +229,11 @@ export const OpponentCorrectionEffect = GObject.registerClass(
         }
     });
 
-export const OpponentSimulationEffect = GObject.registerClass(
-    class OpponentSimulationEffect extends ColorblindFilter {
-        _init() {
-            super._init('linear', { adjustment: 'mat3' }, 'rgb = adjustment * rgb;');
-        }
+export function getSimulationMatrix(properties) {
+    const { whichCone, factor } = properties;
 
-        updateEffect(properties) {
-            const { whichCone, factor } = properties;
+    const rgb2ideal = getRGB2Opp();
+    const rgb2sim = getRGB2Opp(whichCone, factor);
 
-            const rgb2ideal = getRGB2Opp();
-            const rgb2sim = getRGB2Opp(whichCone, factor);
-
-            this.set_uniform('adjustment',
-                M.mult3x3(
-                    M.inverse3x3(rgb2ideal),
-                    rgb2sim));
-        }
-    });
+    return M.mult3x3(M.inverse3x3(rgb2ideal), rgb2sim);
+}
