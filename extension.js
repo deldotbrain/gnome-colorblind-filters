@@ -67,15 +67,12 @@ class FilterManager {
         // the user's filter configuration
         this.configured_filter = null;
 
-        // Take great pains to watch for the screen magnifier activating. If it
-        // does, we need to detach our clone from Main.uiGroup and attach our
-        // effect directly to its actor instead.
+        // The screen magnifier displays on top of our clone of uiGroup, so we
+        // need to apply our effects to *it* whenever it appears.
         const global_stage = Shell.Global.get().stage;
         this.destroyer.connect(global_stage, 'child-added',
             (_stage, actor) => this.a_wild_magnifier_appeared(actor));
 
-        // It's possible that this extension is enabling while the screen
-        // magnifier is already running. Find it and attach.
         let initial_source = Main.uiGroup;
         for (const child of global_stage.get_children()) {
             if (FilterManager.is_magnifier(child)) {
@@ -113,10 +110,6 @@ class FilterManager {
         if (effect !== this.current_effect) {
             // Always apply effects to a Clutter.Clone; see discussion in
             // https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
-            //
-            // In theory, we could apply directly to the screen magnifier, but
-            // when it destroys its actors, it poisons the attached effects in
-            // ways that can crash gnome-shell if they're reused.
             const actor = this.ensure_actor_clone();
 
             if (this.current_effect) {
@@ -140,37 +133,27 @@ class FilterManager {
         return actor.style_class?.split(' ').some(s => s === 'magnifier-zoom-region');
     }
 
-    // Screen magnifier tool displays on top of our effects. When it starts, we
-    // need to attach to its output instead.
     a_wild_magnifier_appeared(child) {
-        // I wonder if it makes sense to do this will *all* windows that aren't
-        // our own? Seems dangerous, especially if someone else has the same
-        // idea.
         if (FilterManager.is_magnifier(child)) {
             this.update_clone(child);
 
             // Watch for this child to be removed. Watching for the destroy
             // event seems more reliable (i.e. works at all) than watching for
-            // the child-removed event.
+            // the child-removed event, but leaves the attached clone in a
+            // funny state.
             //
             // NB: lifetimes are tricky here; the magnifier might outlive us or
             // vice versa. Just use connectObject.
             child.connectObject(
-                'destroy', () => {
-                    // Our clone has its source destroyed and now has a spooky
-                    // curse. We should burn it before its curse can spread.
-                    this.update_clone(Main.uiGroup);
-                },
+                'destroy', () => { this.update_clone(Main.uiGroup); },
                 this);
         }
     }
 
     update_clone(source) {
-        // Create a new clone if one currently exists. Spooky things happen when
-        // screen magnifier turns off and destroys the actor that our clone is
-        // attached to. Our Clone (or our ShaderEffect, if we were foolhardy
-        // enough to attach it directly) gets a spooky curse and will sometimes
-        // crash gnome-shell if reused. Better to nuke it from orbit.
+        // The existing clone might have been attached to the magnifier when it
+        // was destroyed, leaving it radioactive and unsafe to reuse. Instead
+        // of changing its source, create a new one.
         this.destroy_actor_clone();
         this.current_source = source;
         if (this.current_effect) {
