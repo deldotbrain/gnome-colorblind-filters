@@ -13,10 +13,10 @@ import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import { ColorblindFilter } from './shader_base.js';
 
-export const GenericLinearFilter = GObject.registerClass(
-    class GenericLinearFilter extends ColorblindFilter {
-        _init() {
-            super._init('linear', { correction: 'mat3' }, `rgb = correction * rgb;`);
+export const GenericFilter = GObject.registerClass(
+    class GenericFilter extends ColorblindFilter {
+        _init(colorspace) {
+            super._init(colorspace, { correction: 'mat3' }, `rgb = correction * rgb;`);
         }
 
         updateEffect(properties) {
@@ -24,15 +24,14 @@ export const GenericLinearFilter = GObject.registerClass(
         }
     });
 
-export const GenericSRGBFilter = GObject.registerClass(
-    class GenericSRGBFilter extends ColorblindFilter {
-        _init() {
-            super._init('srgb', { correction: 'mat3' }, `rgb = correction * rgb;`);
-        }
+export const GenericLinearFilter = GObject.registerClass(
+    class GenericLinearFilter extends GenericFilter {
+        _init() { super._init('linear'); }
+    });
 
-        updateEffect(properties) {
-            this.set_uniform('correction', properties.getCorrectionMatrix(properties));
-        }
+export const GenericSRGBFilter = GObject.registerClass(
+    class GenericSRGBFilter extends GenericFilter {
+        _init() { super._init('srgb'); }
     });
 
 export const DesaturateEffect = GObject.registerClass(
