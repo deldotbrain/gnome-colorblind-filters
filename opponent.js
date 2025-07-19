@@ -237,10 +237,12 @@ export const OpponentCorrectionEffect = GObject.registerClass(
     });
 
 export function getSimulationMatrix(properties) {
-    const { whichCone, factor } = properties;
+    const { isCorrection, whichCone, factor } = properties;
 
     const rgb2ideal = getRGB2Opp();
     const rgb2sim = getRGB2Opp(whichCone, factor);
 
-    return M.mult3x3(M.inverse3x3(rgb2ideal), rgb2sim);
+    return isCorrection
+        ? M.mult3x3(M.inverse3x3(rgb2sim), rgb2ideal)
+        : M.mult3x3(M.inverse3x3(rgb2ideal), rgb2sim);
 }
