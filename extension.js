@@ -13,6 +13,7 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
+import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -51,6 +52,7 @@ class MenuButton extends PanelMenu.Button {
         this._actionTime = 0;
         this._activeItem = null;
         this._activeData = null;
+        this._uiClone = null;
         this._filterStrength = 1;
         this._menuItems = [];
 
@@ -290,12 +292,24 @@ class MenuButton extends PanelMenu.Button {
     }
 
     _addEffect(effect) {
-        Main.uiGroup.add_effect_with_name(this._filterName, effect);
+        if (this._uiClone === null) {
+            this._uiClone = new Clutter.Clone({
+                source: Main.uiGroup,
+                clip_to_allocation: true,
+            });
+            Shell.Global.get().stage.add_child(this._uiClone);
+        }
+
+        this._uiClone.add_effect_with_name(this._filterName, effect);
         this._activeEffect = effect;
     }
 
     _removeEffect() {
-        Main.uiGroup.remove_effect_by_name(this._filterName);
+        if (this._uiClone !== null) {
+            this._uiClone.remove_effect_by_name(this._filterName);
+            this._uiClone.destroy();
+            this._uiClone = null;
+        }
     }
 
     _saveSettings() {
