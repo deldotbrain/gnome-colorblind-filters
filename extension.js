@@ -261,8 +261,6 @@ const FilterQuickSettingsMenu = GObject.registerClass(
                 toggleMode: true,
             });
 
-            this.gettext = _;
-
             this.title = title;
 
             this.destroyer = new DestroyAllTheThings();
@@ -275,16 +273,15 @@ const FilterQuickSettingsMenu = GObject.registerClass(
             });
             settings_proxy.connect_eager('filter-name', 'string', cfg_string => {
                 const filter = Filter.fromString(cfg_string);
-                this.subtitle = get_label_for_filter(filter, this.gettext);
+                this.subtitle = get_label_for_filter(filter, _);
             });
 
             settings.bind('filter-active', this, 'checked', 0);
 
-            this.config_menu = new FilterConfigMenu(_, settings, this.menu, false, true);
+            this.destroyer.construct(FilterConfigMenu, _, settings, this.menu, false, true);
         }
 
         destroy() {
-            this.config_menu?.destroy();
             this.destroyer.destroy();
             super.destroy();
         }
@@ -295,8 +292,8 @@ class FilterConfigMenu {
         this.gettext = _;
         this.settings = settings;
 
-        this.thing_destroyer_9000 = new DestroyAllTheThings();
-        const destroyer = this.thing_destroyer_9000;
+        this.destroyer = new DestroyAllTheThings();
+        const destroyer = this.destroyer;
         const construct = destroyer.construct.bind(destroyer);
 
         // Whatever settings were most recently configured, either by menu or by
@@ -395,7 +392,7 @@ class FilterConfigMenu {
         this.tritan_hack_switch = null;
         this.high_contrast_switch = null;
         this.strength_slider = null;
-        this.thing_destroyer_9000.destroy();
+        this.destroyer.destroy();
     }
 
     update_config(field, value) {
