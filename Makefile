@@ -64,7 +64,10 @@ $(BUILD_TMP)/po/$(NAME).pot: $(js_files)
 		$(js_files)
 
 check_pot: $(BUILD_TMP)/po/$(NAME).pot
-	@if ! diff <(sed '1,/^$$/d' $<) <(sed '1,/^$$/d' po/$(NAME).pot) &>/dev/null; then \
+	@if ! diff \
+		<(grep '^msgid' $< | sort | uniq) \
+		<(grep '^msgid' po/$(NAME).pot | sort | uniq) \
+		&>/dev/null; then \
 		echo -e '\e[1;31mWarning: po/$(NAME) is out of date\e[0m'; \
 	fi
 
