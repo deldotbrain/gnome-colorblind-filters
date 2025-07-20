@@ -14,7 +14,20 @@ BUILD_TMP ?= build$(sfx)
 
 js_files = $(wildcard *.js)
 locales_po = $(wildcard po/*.po)
+
+ifneq ($(shell which msgfmt xgettext &>/dev/null; echo $$?),0)
+warn_gettext:
+	@echo -e '\e[1;31mWarning: gettext not found; translations will not be packaged\e[0m'
+
+.PHONY: warn_gettext
+
+build_mos = warn_gettext
+check_pot = warn_gettext
+else
 locales_mo = $(patsubst po/%.po,$(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo,$(locales_po))
+build_mos = $(locales_mo)
+check_pot = check_pot
+endif
 
 zip_generated = \
 		$(BUILD_TMP)/metadata.json \
@@ -23,10 +36,10 @@ zip_generated = \
 		$(locales_mo)
 zip_asis = $(patsubst %,$(BUILD_TMP)/%,$(js_files))
 
-# These six recipes can be invoked by the user.
-.PHONY: all zip install uninstall clean
+# These recipes can be invoked by the user.
+.PHONY: all zip install uninstall clean check_pot
 
-all: $(zip_generated)
+all: $(build_mos) $(zip_generated) $(check_pot)
 
 # The zip recipes only bundles the extension without installing it.
 zip: $(ZIP_NAME)
@@ -44,11 +57,16 @@ uninstall:
 $(BUILD_TMP)/po/$(NAME).pot: $(js_files)
 	mkdir -p $(BUILD_TMP)/po
 	xgettext --from-code=UTF-8 \
-	          --add-comments=Translators \
-	          --copyright-holder="GdH" \
-	          --package-name="$(NAME)" \
-	          --output=$(BUILD_TMP)/po/$(NAME).pot \
-	          $(js_files)
+		--add-comments=Translators \
+		--copyright-holder="A. Pennucci" \
+		--package-name="$(NAME)" \
+		--output=$@ \
+		$(js_files)
+
+check_pot: $(BUILD_TMP)/po/$(NAME).pot
+	@if ! diff <(sed '1,/^$$/d' $<) <(sed '1,/^$$/d' po/$(NAME).pot) &>/dev/null; then \
+		echo -e '\e[1;31mWarning: po/$(NAME) is out of date\e[0m'; \
+	fi
 
 # This removes all temporary files created with the other recipes.
 clean:
@@ -58,22 +76,28 @@ $(BUILD_TMP):
 	mkdir -p $(BUILD_TMP)
 
 $(BUILD_TMP)/metadata.json: metadata.json $(BUILD_TMP)
-	jq '.["settings-schema"] = "org.gnome.shell.extensions.$(PNAME)" | .uuid = "$(UUID)"$(if $(SUFFIX), | .name = .name + " ($(SUFFIX))")' $< >$@
+	if [ -n "$(SUFFIX)" ]; then \
+		jq '.["settings-schema"] = "org.gnome.shell.extensions.$(PNAME)" | .uuid = "$(UUID)"$(if $(SUFFIX), | .name = .name + " ($(SUFFIX))")' $< >$@; \
+	else \
+		cp $< $@; \
+	fi
 
 $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
 	mkdir -p $(BUILD_TMP)/schemas
-	xmlstarlet ed \
-		-u //schema/@id -v "org.gnome.shell.extensions.$(PNAME)" \
-		-u //schema/@path -v "/org/gnome/shell/extensions/$(PNAME)/" \
-		$< > $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
+	if [ -n "$(SUFFIX)" ]; then \
+		xmlstarlet ed \
+			-u //schema/@id -v "org.gnome.shell.extensions.$(PNAME)" \
+			-u //schema/@path -v "/org/gnome/shell/extensions/$(PNAME)/" \
+			$< >$@; \
+	else \
+		cp $< $@; \
+	fi
 
 # Compiles the gschemas.compiled file from the gschema.xml file.
 $(BUILD_TMP)/schemas/gschemas.compiled: $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
 	glib-compile-schemas $(BUILD_TMP)/schemas
 
-# FIXME surely gettext can't see its .pot file, but it doesn't care? It's fine,
-# I broke i18n ages ago anyway.
-$(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po $(BUILD_TMP)/po/$(NAME).pot
+$(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
 	mkdir -p $(BUILD_TMP)/locale/$*/LC_MESSAGES
 	msgfmt -c -o $@ $<
 
@@ -83,7 +107,7 @@ $(BUILD_TMP)/%.js: %.js $(BUILD_TMP)
 # This bundles the extension and checks whether it is small enough to be uploaded to
 # extensions.gnome.org. We do not use "gnome-extensions pack" for this, as this is not
 # readily available on the GitHub runners.
-$(ZIP_NAME): $(zip_generated) $(zip_asis)
+$(ZIP_NAME): $(build_mos) $(zip_generated) $(zip_asis)
 	rm --force $(ZIP_NAME)
 	cd $(BUILD_TMP) && zip "$(abspath $(ZIP_NAME))" $(patsubst $(BUILD_TMP)/%,%,$^)
 

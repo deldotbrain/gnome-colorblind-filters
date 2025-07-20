@@ -20,8 +20,9 @@ to prove to myself that my changes have been an improvement.
 
 Should support GNOME Shell 45 - 48, but I don't test against older versions.
 
-To build from source, you'll need `make`, `gettext`, `jq`, and `xmlstarlet`.
-Depending on your distro, you might also need a development package for `glib`.
+To build from source, you'll need GNU `make` and `zip`. Depending on your
+distro, you might also need a development package for `glib`. `gettext` is
+optional to build translations (but the extension hasn't been translated yet).
 
 Once you have the dependencies installed, fetch the source and run `make
 install`:

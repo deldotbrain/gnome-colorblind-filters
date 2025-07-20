@@ -3,7 +3,7 @@
 suffix := 'dev'
 package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
 
-zip: (make 'zip')
+zip: (make 'all') (make 'zip')
 
 clean: (make 'clean')
 
