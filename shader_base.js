@@ -7,7 +7,7 @@
  * @license    GPL-3.0
  */
 
-'use strict'
+'use strict';
 
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
@@ -30,11 +30,11 @@ export class UniformDim {
     }
 
     define(name) {
-        if (this.size == 1) {
+        if (this.size === 1) {
             // Scalars don't need to be redefined
             return '';
         } else {
-            const elems = Array(this.size).fill().map((_, i) => `${name}${i}`).join(', ')
+            const elems = Array(this.size).fill().map((_, i) => `${name}${i}`).join(', ');
             return `${this.type} ${name} = ${this.type}(${elems});`;
         }
     }
@@ -79,7 +79,7 @@ export const ColorblindFilter = GObject.registerClass(
             super._init();
 
             this.uniforms = Object.fromEntries(Object.entries(uniforms).map(
-                ([name, type]) => (type instanceof UniformDim)
+                ([name, type]) => type instanceof UniformDim
                     ? [name, type]
                     : [name, uniform_types[type]]));
 

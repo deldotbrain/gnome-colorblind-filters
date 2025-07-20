@@ -186,15 +186,15 @@ export const HighContrastEnable = {
 };
 
 export function tritan_hack_allowed(mode, algorithm, color_blindness_type) {
-    return (mode === FilterMode.CORRECTION || mode === FilterMode.SIMULATION)
-        && algorithm?.usesTritanHack
-        && color_blindness_type === ColorBlindnessType.TRITAN;
+    return (mode === FilterMode.CORRECTION || mode === FilterMode.SIMULATION) &&
+        algorithm?.usesTritanHack &&
+        color_blindness_type === ColorBlindnessType.TRITAN;
 }
 
 export function high_contrast_allowed(mode, algorithm, color_blindness_type) {
-    return mode === FilterMode.CORRECTION && algorithm?.usesHighContrast
-        && (color_blindness_type === ColorBlindnessType.PROTAN
-            || color_blindness_type === ColorBlindnessType.DEUTAN);
+    return mode === FilterMode.CORRECTION && algorithm?.usesHighContrast &&
+        (color_blindness_type === ColorBlindnessType.PROTAN ||
+            color_blindness_type === ColorBlindnessType.DEUTAN);
 }
 
 function getProperties(kind) {
@@ -372,7 +372,8 @@ export class Filter {
             this.algorithm,
             this.color_blindness_type,
             this.tritan_hack,
-            this.high_contrast]) {
+            this.high_contrast,
+        ]) {
             if (field !== null) {
                 Object.assign(properties, field.properties);
             }

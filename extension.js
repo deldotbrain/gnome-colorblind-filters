@@ -333,7 +333,9 @@ class FilterConfigMenu {
             menu_item.add_child(strength_slider);
             // Warning: not removing this child ALSO has a small chance of
             // crashing under the same circumstances.
-            this.destroyer.add_fn(() => { menu_item.remove_child(strength_slider); });
+            this.destroyer.add_fn(() => {
+                menu_item.remove_child(strength_slider);
+            });
             menu.addMenuItem(menu_item);
 
             this.strength_slider = menu_item;
@@ -536,7 +538,9 @@ class DestroyAllTheThings {
 
     connect(instance, signal, callback) {
         const handler_id = instance.connect(signal, callback);
-        this.add_fn(() => { instance.disconnect(handler_id); });
+        this.add_fn(() => {
+            instance.disconnect(handler_id);
+        });
         return handler_id;
     }
 

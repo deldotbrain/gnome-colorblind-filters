@@ -228,10 +228,10 @@ export const OpponentCorrectionEffect = GObject.registerClass(
 
                 // The shader needs to know a lot about the cost function to
                 // solve its derivative for zero.
-                rgb2ideal: rgb2ideal,
-                rgb2sim: rgb2sim,
-                rgb_weights: rgb_weights,
-                opp_weights: opp_weights,
+                rgb2ideal,
+                rgb2sim,
+                rgb_weights,
+                opp_weights,
             });
         }
     });

@@ -16,7 +16,7 @@ import { ColorblindFilter } from './shader_base.js';
 export const GenericFilter = GObject.registerClass(
     class GenericFilter extends ColorblindFilter {
         _init(colorspace) {
-            super._init(colorspace, { correction: 'mat3' }, `rgb = correction * rgb;`);
+            super._init(colorspace, { correction: 'mat3' }, 'rgb = correction * rgb;');
         }
 
         updateEffect(properties) {
