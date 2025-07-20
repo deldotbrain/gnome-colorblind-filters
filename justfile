@@ -26,7 +26,7 @@ test-multimon monitors="2" display=":2" resolution="1280x720": install
     dbus-run-session -- gnome-shell --nested --wayland --display={{display}}
 
 lint:
-    npx eslint *.js
+    npx eslint src/*.js
 
 install-eslint:
     npm install -D eslint @eslint/js

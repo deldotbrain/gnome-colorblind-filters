@@ -12,7 +12,7 @@ ZIP_NAME := $(UUID).zip
 
 BUILD_TMP ?= build$(sfx)
 
-js_files = $(wildcard *.js)
+js_files = $(wildcard src/*.js)
 locales_po = $(wildcard po/*.po)
 
 ifneq ($(shell which msgfmt xgettext &>/dev/null; echo $$?),0)
@@ -34,7 +34,7 @@ zip_generated = \
 		$(BUILD_TMP)/schemas/gschemas.compiled \
 		$(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml \
 		$(locales_mo)
-zip_asis = $(patsubst %,$(BUILD_TMP)/%,$(js_files))
+zip_asis = $(patsubst src/%,$(BUILD_TMP)/%,$(js_files))
 
 # These recipes can be invoked by the user.
 .PHONY: all zip install uninstall clean check_pot
@@ -104,7 +104,7 @@ $(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
 	mkdir -p $(BUILD_TMP)/locale/$*/LC_MESSAGES
 	msgfmt -c -o $@ $<
 
-$(BUILD_TMP)/%.js: %.js $(BUILD_TMP)
+$(BUILD_TMP)/%.js: src/%.js $(BUILD_TMP)
 	cp $< $@
 
 # This bundles the extension and checks whether it is small enough to be uploaded to
