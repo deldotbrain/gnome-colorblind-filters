@@ -316,11 +316,18 @@ class FilterConfigMenu {
 
         if (with_slider) {
             const menu_item = construct(PopupMenu.PopupBaseMenuItem);
-            const strength_slider = construct(Slider, 0);
+            // Warning: destroying this object has a small chance of causing
+            // GNOME Shell to crash if the extension is disabled after the
+            // screen magnifier has been enabled. Just leak it. I'm not sorry.
+            const strength_slider = new Slider(0);
+            strength_slider.accessible_name = _('Filter Strength');
             settings.bind('filter-strength', strength_slider, 'value', 0);
 
             menu_item.add_child(construct(St.Label, { text: _('Filter Strength') }));
             menu_item.add_child(strength_slider);
+            // Warning: not removing this child ALSO has a small chance of
+            // crashing under the same circumstances.
+            this.destroyer.add_fn(() => { menu_item.remove_child(strength_slider); });
             menu.addMenuItem(menu_item);
 
             this.strength_slider = menu_item;
@@ -517,9 +524,13 @@ class DestroyAllTheThings {
         return obj;
     }
 
+    add_fn(fn) {
+        this.objects.push(new Destructor(fn));
+    }
+
     connect(instance, signal, callback) {
         const handler_id = instance.connect(signal, callback);
-        this.add(new Disconnecter(instance, handler_id));
+        this.add_fn(() => { instance.disconnect(handler_id); });
         return handler_id;
     }
 
@@ -559,15 +570,8 @@ class SettingsProxy {
     }
 }
 
-// Disconnect automatically from connected signals. Similar in purpose to
-// connectObject, but able to be explicitly ordered with DestroyAllTheThings.
-class Disconnecter {
-    constructor(instance, handler_id) {
-        this.instance = instance;
-        this.handler_id = handler_id;
-    }
-
-    destroy() {
-        this.instance.disconnect(this.handler_id);
+class Destructor {
+    constructor(dtor) {
+        this.destroy = dtor;
     }
 }
