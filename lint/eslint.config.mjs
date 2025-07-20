@@ -13,5 +13,5 @@ const compat = new FlatCompat({
 });
 
 export default defineConfig([{
-    extends: compat.extends("./lint/eslintrc-gjs.yml", "./lint/eslintrc-shell.yml"),
+    extends: compat.extends("./eslintrc-gjs.yml", "./eslintrc-shell.yml"),
 }]);
