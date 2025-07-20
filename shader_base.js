@@ -70,61 +70,64 @@ const uniform_types = Object.fromEntries([
     ['mat3', 9],
 ].map(([t, s]) => [t, new UniformDim(t, s)]));
 
-export const ColorblindFilter = GObject.registerClass(
-    class ColorblindFilter extends Clutter.ShaderEffect {
-        // colorspace: 'linear' or 'srgb'
-        // uniforms: object containing type names
-        // snippet: fragment of glsl operating on `vec3 rgb`
-        _init(colorspace, uniforms, snippet) {
-            super._init();
+export class ColorblindFilter extends Clutter.ShaderEffect {
+    static {
+        GObject.registerClass(this);
+    }
 
-            this.uniforms = Object.fromEntries(Object.entries(uniforms).map(
-                ([name, type]) => type instanceof UniformDim
-                    ? [name, type]
-                    : [name, uniform_types[type]]));
+    // colorspace: 'linear' or 'srgb'
+    // uniforms: object containing type names
+    // snippet: fragment of glsl operating on `vec3 rgb`
+    _init(colorspace, uniforms, snippet) {
+        super._init();
 
-            this.source = this.make_shader_source(snippet, colorspace);
-            this.set_shader_source(this.source);
-            this.set_uniform_value('tex', 0);
+        this.uniforms = Object.fromEntries(Object.entries(uniforms).map(
+            ([name, type]) => type instanceof UniformDim
+                ? [name, type]
+                : [name, uniform_types[type]]));
+
+        this.source = this.make_shader_source(snippet, colorspace);
+        this.set_shader_source(this.source);
+        this.set_uniform_value('tex', 0);
+    }
+
+    set_uniform(name, value) {
+        this.uniforms[name].update(this, name, value);
+    }
+
+    set_uniforms(values) {
+        Object.entries(values)
+            .forEach(([name, value]) => this.set_uniform(name, value));
+    }
+
+    vfunc_get_static_shader_source() {
+        return this.source;
+    }
+
+    // TODO: Have Clutter handle colorspace transformations for us. That
+    // appears to require reimplementing large parts of Clutter.ShaderEffect
+    // to add the required cogl snippets to the pipeline (and to have access
+    // to the pipeline's color state to begin with).
+    make_shader_source(snippet, colorspace) {
+        const want_linear = { linear: true, srgb: false }[colorspace];
+        if (want_linear === undefined) {
+            console.warn(`unknown colorspace ${colorspace}, assuming srgb`);
         }
 
-        set_uniform(name, value) {
-            this.uniforms[name].update(this, name, value);
-        }
+        // Highly scientific colorspace conversion: assume sRGB input and
+        // output and use the x^2.2 approximation for gamma.
+        const get_rgb = want_linear ? 'pow(_c.rgb, vec3(2.2))' : '_c.rgb';
+        const set_rgb = want_linear ? 'pow(rgb, vec3(1/2.2))' : 'rgb';
 
-        set_uniforms(values) {
-            Object.entries(values)
-                .forEach(([name, value]) => this.set_uniform(name, value));
-        }
+        const declare_uniforms = Object.entries(this.uniforms)
+            .map(([n, u]) => u.declare(n))
+            .join('\n');
+        const define_uniforms = Object.entries(this.uniforms)
+            .map(([n, u]) => u.define(n))
+            .filter(s => s !== '')
+            .join('\n');
 
-        vfunc_get_static_shader_source() {
-            return this.source;
-        }
-
-        // TODO: Have Clutter handle colorspace transformations for us. That
-        // appears to require reimplementing large parts of Clutter.ShaderEffect
-        // to add the required cogl snippets to the pipeline (and to have access
-        // to the pipeline's color state to begin with).
-        make_shader_source(snippet, colorspace) {
-            const want_linear = { linear: true, srgb: false }[colorspace];
-            if (want_linear === undefined) {
-                console.warn(`unknown colorspace ${colorspace}, assuming srgb`);
-            }
-
-            // Highly scientific colorspace conversion: assume sRGB input and
-            // output and use the x^2.2 approximation for gamma.
-            const get_rgb = want_linear ? 'pow(_c.rgb, vec3(2.2))' : '_c.rgb';
-            const set_rgb = want_linear ? 'pow(rgb, vec3(1/2.2))' : 'rgb';
-
-            const declare_uniforms = Object.entries(this.uniforms)
-                .map(([n, u]) => u.declare(n))
-                .join('\n');
-            const define_uniforms = Object.entries(this.uniforms)
-                .map(([n, u]) => u.define(n))
-                .filter(s => s !== '')
-                .join('\n');
-
-            return `
+        return `
             uniform sampler2D tex;
             ${declare_uniforms}
 
@@ -139,5 +142,5 @@ export const ColorblindFilter = GObject.registerClass(
             cogl_color_out = vec4(${set_rgb}, _c.a);
             }
             `;
-        }
-    });
+    }
+}

@@ -214,38 +214,41 @@ function pick_icon(enabled) {
     return `view-${enabled ? 'reveal' : 'conceal'}-symbolic`;
 }
 
-const FilterIndicator = GObject.registerClass(
-    class FilterIndicator extends QuickSettings.SystemIndicator {
-        _init(settings) {
-            super._init();
+class FilterIndicator extends QuickSettings.SystemIndicator {
+    static {
+        GObject.registerClass(this);
+    }
 
-            this.destroyer = new DestroyAllTheThings();
+    _init(settings) {
+        super._init();
 
-            this.indicator = this._addIndicator();
+        this.destroyer = new DestroyAllTheThings();
 
-            this.destroyer.settings_proxy(settings).connect_eager(
-                'filter-active',
-                'boolean',
-                active => { this.indicator.icon_name = pick_icon(active); });
+        this.indicator = this._addIndicator();
 
-            this.indicator.visible = true;
-        }
+        this.destroyer.settings_proxy(settings).connect_eager(
+            'filter-active',
+            'boolean',
+            active => { this.indicator.icon_name = pick_icon(active); });
 
-        destroy() {
-            this.quickSettingsItems.forEach(i => i.destroy());
-            this.quickSettingsItems = [];
-            this.destroyer.destroy();
-            super.destroy();
-        }
+        this.indicator.visible = true;
+    }
 
-        attach(item) {
-            this.quickSettingsItems.push(item);
-        }
+    destroy() {
+        this.quickSettingsItems.forEach(i => i.destroy());
+        this.quickSettingsItems = [];
+        this.destroyer.destroy();
+        super.destroy();
+    }
 
-        register() {
-            Main.panel.statusArea.quickSettings.addExternalIndicator(this);
-        }
-    });
+    attach(item) {
+        this.quickSettingsItems.push(item);
+    }
+
+    register() {
+        Main.panel.statusArea.quickSettings.addExternalIndicator(this);
+    }
+}
 
 function get_label_for_filter(filter, _) {
     if (filter) {
@@ -260,38 +263,41 @@ function get_label_for_filter(filter, _) {
 // At one point, I was going to have a toggle to display a slider instead of a
 // toggle, so I made all the menu logic reusable. As it turns out, QuickSlider
 // was not able to do what I wanted, so I decided against it (/diplomatic).
-const FilterQuickSettingsMenu = GObject.registerClass(
-    class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
-        _init(_, title, settings) {
-            super._init({
-                toggleMode: true,
-            });
+class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
+    static {
+        GObject.registerClass(this);
+    }
 
-            this.title = title;
+    _init(_, title, settings) {
+        super._init({
+            toggleMode: true,
+        });
 
-            this.destroyer = new DestroyAllTheThings();
-            const settings_proxy = this.destroyer.settings_proxy(settings);
+        this.title = title;
 
-            settings_proxy.connect_eager('filter-active', 'boolean', active => {
-                const icon = pick_icon(active);
-                this.icon_name = icon;
-                this.menu.setHeader(icon, this.title);
-            });
-            settings_proxy.connect_eager('filter-name', 'string', cfg_string => {
-                const filter = Filter.fromString(cfg_string);
-                this.subtitle = get_label_for_filter(filter, _);
-            });
+        this.destroyer = new DestroyAllTheThings();
+        const settings_proxy = this.destroyer.settings_proxy(settings);
 
-            settings.bind('filter-active', this, 'checked', 0);
+        settings_proxy.connect_eager('filter-active', 'boolean', active => {
+            const icon = pick_icon(active);
+            this.icon_name = icon;
+            this.menu.setHeader(icon, this.title);
+        });
+        settings_proxy.connect_eager('filter-name', 'string', cfg_string => {
+            const filter = Filter.fromString(cfg_string);
+            this.subtitle = get_label_for_filter(filter, _);
+        });
 
-            this.destroyer.construct(FilterConfigMenu, _, settings, this.menu, false, true);
-        }
+        settings.bind('filter-active', this, 'checked', 0);
 
-        destroy() {
-            this.destroyer.destroy();
-            super.destroy();
-        }
-    });
+        this.destroyer.construct(FilterConfigMenu, _, settings, this.menu, false, true);
+    }
+
+    destroy() {
+        this.destroyer.destroy();
+        super.destroy();
+    }
+}
 
 class FilterConfigMenu {
     constructor(_, settings, menu, with_toggle, with_slider) {

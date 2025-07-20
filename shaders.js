@@ -13,39 +13,54 @@ import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import { ColorblindFilter } from './shader_base.js';
 
-export const GenericFilter = GObject.registerClass(
-    class GenericFilter extends ColorblindFilter {
-        _init(colorspace) {
-            super._init(colorspace, { correction: 'mat3' }, 'rgb = correction * rgb;');
-        }
+export class GenericFilter extends ColorblindFilter {
+    static {
+        GObject.registerClass(this);
+    }
 
-        updateEffect(properties) {
-            this.set_uniform('correction', properties.getCorrectionMatrix(properties));
-        }
-    });
+    _init(colorspace) {
+        super._init(colorspace, { correction: 'mat3' }, 'rgb = correction * rgb;');
+    }
 
-export const GenericLinearFilter = GObject.registerClass(
-    class GenericLinearFilter extends GenericFilter {
-        _init() { super._init('linear'); }
-    });
+    updateEffect(properties) {
+        this.set_uniform('correction', properties.getCorrectionMatrix(properties));
+    }
+}
 
-export const GenericSRGBFilter = GObject.registerClass(
-    class GenericSRGBFilter extends GenericFilter {
-        _init() { super._init('srgb'); }
-    });
+export class GenericLinearFilter extends GenericFilter {
+    static {
+        GObject.registerClass(this);
+    }
 
-export const DesaturateEffect = GObject.registerClass(
-    class DesaturateEffect extends Clutter.DesaturateEffect {
-        updateEffect(properties) {
-            this.factor = properties.factor;
-        }
-    });
+    _init() { super._init('linear'); }
+}
 
-export const InversionEffect = GObject.registerClass(
-    class InversionEffect extends ColorblindFilter {
-        _init() {
-            // Leaving this in sRGB since it does its own gamma shenanigans
-            super._init('srgb', { INVERSION_MODE: 'int' }, `
+export class GenericSRGBFilter extends GenericFilter {
+    static {
+        GObject.registerClass(this);
+    }
+
+    _init() { super._init('srgb'); }
+}
+
+export class DesaturateEffect extends Clutter.DesaturateEffect {
+    static {
+        GObject.registerClass(this);
+    }
+
+    updateEffect(properties) {
+        this.factor = properties.factor;
+    }
+}
+
+export class InversionEffect extends ColorblindFilter {
+    static {
+        GObject.registerClass(this);
+    }
+
+    _init() {
+        // Leaving this in sRGB since it does its own gamma shenanigans
+        super._init('srgb', { INVERSION_MODE: 'int' }, `
                 float alpha = _c.a;
 
                 if (INVERSION_MODE < 2) {
@@ -65,18 +80,21 @@ export const InversionEffect = GObject.registerClass(
                 float gamma = 1.8;
                 rgb = pow(rgb, vec3(1.0/gamma));
                 `);
-        }
+    }
 
-        updateEffect(properties) {
-            this.set_uniform('INVERSION_MODE', properties.mode);
-        }
-    });
+    updateEffect(properties) {
+        this.set_uniform('INVERSION_MODE', properties.mode);
+    }
+}
 
-export const ColorMixerEffect = GObject.registerClass(
-    class ColorMixerEffect extends ColorblindFilter {
-        _init() {
-            // Used sRGB upstream, so this will look a little different
-            super._init('linear', { MIX_MODE: 'int', STRENGTH: 'float' }, `
+export class ColorMixerEffect extends ColorblindFilter {
+    static {
+        GObject.registerClass(this);
+    }
+
+    _init() {
+        // Used sRGB upstream, so this will look a little different
+        super._init('linear', { MIX_MODE: 'int', STRENGTH: 'float' }, `
                 vec3 m;
                 if (MIX_MODE == 0) {
                     m = vec3(rgb.b, rgb.r, rgb.g);
@@ -85,13 +103,13 @@ export const ColorMixerEffect = GObject.registerClass(
                 }
                 rgb = mix(rgb, m, STRENGTH);
                 `);
-        }
+    }
 
-        updateEffect(properties) {
-            this.set_uniforms({
-                // 0 - GRB, 1 - BRG
-                MIX_MODE: properties.mode,
-                STRENGTH: properties.factor,
-            });
-        }
-    });
+    updateEffect(properties) {
+        this.set_uniforms({
+            // 0 - GRB, 1 - BRG
+            MIX_MODE: properties.mode,
+            STRENGTH: properties.factor,
+        });
+    }
+}

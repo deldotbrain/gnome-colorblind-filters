@@ -125,20 +125,23 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
         condition(M.getRow3(r2o_scaled, 2)));
 }
 
-export const OpponentCorrectionEffect = GObject.registerClass(
-    class OpponentCorrectionEffect extends ColorblindFilter {
-        _init() {
-            super._init(
-                'linear',
-                {
-                    rgb2ideal: 'mat3',
-                    rgb2sim: 'mat3',
-                    rgb2const: 'mat3',
-                    rgb2var: 'mat3',
-                    rgb_weights: 'vec3',
-                    opp_weights: 'vec3',
-                },
-                `
+export class OpponentCorrectionEffect extends ColorblindFilter {
+    static {
+        GObject.registerClass(this);
+    }
+
+    _init() {
+        super._init(
+            'linear',
+            {
+                rgb2ideal: 'mat3',
+                rgb2sim: 'mat3',
+                rgb2const: 'mat3',
+                rgb2var: 'mat3',
+                rgb_weights: 'vec3',
+                opp_weights: 'vec3',
+            },
+            `
                 const int step_count = 5;
 
                 vec3 orig_rgb = rgb;
@@ -166,75 +169,75 @@ export const OpponentCorrectionEffect = GObject.registerClass(
                     rgb -= step * grad;
                 }
                 `);
-        }
+    }
 
-        updateEffect(properties) {
-            const { whichCone, factor } = properties;
-            // Cost of the opponent-space errors; first component is luma
-            const opp_weights = [250, 50, 50];
-            // Cost of adjustment away from original RGB value. Has little
-            // effect for low factor, but avoids solutions far outside of the
-            // RGB gamut for high factors.
-            const rgb_weights = [1, 1, 1];
+    updateEffect(properties) {
+        const { whichCone, factor } = properties;
+        // Cost of the opponent-space errors; first component is luma
+        const opp_weights = [250, 50, 50];
+        // Cost of adjustment away from original RGB value. Has little
+        // effect for low factor, but avoids solutions far outside of the
+        // RGB gamut for high factors.
+        const rgb_weights = [1, 1, 1];
 
-            // To correct for reduced cone sensitivity, search for an RGB value
-            // that produces a point in opponent-color space for a colorblind
-            // viewer that is close to the intended point. Luma errors are much
-            // more visible than chroma, so they should be reduced compared to
-            // chroma errors. Finally, the RGB gamut is finite, so values that
-            // differ greatly from the original RGB should be avoided. So,
-            // minimize a cost function:
-            // c(r,g,b) = W_r*(r_c - R_0)^2
-            //          + W_g*(g_c - G_0)^2
-            //          + W_b*(b_c - B_0)^2
-            //          + W_v*(v_c - V_i)^2
-            //          + W_yb*(yb_c - YB_i)^2
-            //          + W_rg*(rg_c - RG_i)^2
-            // i.e. the square of the distance in opponent-color space between
-            // the simulated corrected image and the intended image, plus the
-            // square of the distance in RGB space between the corrected image
-            // and the original, but with some components possibly weighted
-            // differently.
-            //
-            // There's probably a really clever way to solve this analytically,
-            // but I don't know it and GPU cycles are pretty cheap. A couple of
-            // iterations of gradient descent produce a very accurate result.
+        // To correct for reduced cone sensitivity, search for an RGB value
+        // that produces a point in opponent-color space for a colorblind
+        // viewer that is close to the intended point. Luma errors are much
+        // more visible than chroma, so they should be reduced compared to
+        // chroma errors. Finally, the RGB gamut is finite, so values that
+        // differ greatly from the original RGB should be avoided. So,
+        // minimize a cost function:
+        // c(r,g,b) = W_r*(r_c - R_0)^2
+        //          + W_g*(g_c - G_0)^2
+        //          + W_b*(b_c - B_0)^2
+        //          + W_v*(v_c - V_i)^2
+        //          + W_yb*(yb_c - YB_i)^2
+        //          + W_rg*(rg_c - RG_i)^2
+        // i.e. the square of the distance in opponent-color space between
+        // the simulated corrected image and the intended image, plus the
+        // square of the distance in RGB space between the corrected image
+        // and the original, but with some components possibly weighted
+        // differently.
+        //
+        // There's probably a really clever way to solve this analytically,
+        // but I don't know it and GPU cycles are pretty cheap. A couple of
+        // iterations of gradient descent produce a very accurate result.
 
-            const rgb2ideal = getRGB2Opp();
-            const rgb2sim = getRGB2Opp(whichCone, factor);
+        const rgb2ideal = getRGB2Opp();
+        const rgb2sim = getRGB2Opp(whichCone, factor);
 
-            this.set_uniforms({
-                // As a minor optimization, the constant half of the partial
-                // derivatives in the gradient are calculated only once.
-                rgb2const: M.scale3(-2,
-                    M.add3x3(
-                        M.diagonal(rgb_weights),
+        this.set_uniforms({
+            // As a minor optimization, the constant half of the partial
+            // derivatives in the gradient are calculated only once.
+            rgb2const: M.scale3(-2,
+                M.add3x3(
+                    M.diagonal(rgb_weights),
+                    M.mult3x3(
+                        M.transpose(rgb2sim),
                         M.mult3x3(
-                            M.transpose(rgb2sim),
-                            M.mult3x3(
-                                M.diagonal(opp_weights),
-                                rgb2ideal)))),
+                            M.diagonal(opp_weights),
+                            rgb2ideal)))),
 
-                // The variable half still needs to be calculated for every
-                // iteration.
-                rgb2var: M.scale3(2,
-                    M.add3x3(
-                        M.diagonal(rgb_weights),
+            // The variable half still needs to be calculated for every
+            // iteration.
+            rgb2var: M.scale3(2,
+                M.add3x3(
+                    M.diagonal(rgb_weights),
+                    M.mult3x3(
+                        M.transpose(rgb2sim),
                         M.mult3x3(
-                            M.transpose(rgb2sim),
-                            M.mult3x3(
-                                M.diagonal(opp_weights),
-                                rgb2sim)))),
+                            M.diagonal(opp_weights),
+                            rgb2sim)))),
 
-                // The shader needs to know a lot about the cost function to
-                // solve its derivative for zero.
-                rgb2ideal,
-                rgb2sim,
-                rgb_weights,
-                opp_weights,
-            });
-        }
-    });
+            // The shader needs to know a lot about the cost function to
+            // solve its derivative for zero.
+            rgb2ideal,
+            rgb2sim,
+            rgb_weights,
+            opp_weights,
+        });
+    }
+}
 
 export function getSimulationMatrix(properties) {
     const { isCorrection, whichCone, factor } = properties;
