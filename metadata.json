@@ -1,5 +1,5 @@
 {
-  "description": "Adds color blindness correction/simulation filters to the quick settings menu.\nA variety of filters are available for correcting or simulating color blindness. See the extension's homepage for more details. Please report issues there if you have any trouble!\n\nThis extension was forked from GdH's Colorblind Filters extension.",
+  "description": "Adds color blindness correction/simulation filters to the quick settings menu.\nA variety of filters are available for correcting or simulating color blindness. See the extension's homepage for more details. Please report issues there if you have any trouble!\nThe developer would be delighted to hear what you think of the Opponent Color Solver filter. It's their creation and they want to make is as useful as possible.\n\nThis extension was forked from GdH's Colorblind Filters extension.",
   "gettext-domain": "colorblind-filters-advanced",
   "name": "Colorblind Filters Advanced",
   "settings-schema": "org.gnome.shell.extensions.colorblind-filters-advanced",
