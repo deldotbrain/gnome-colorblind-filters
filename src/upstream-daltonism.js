@@ -1,3 +1,12 @@
+/**
+ * ColorBlind Filters
+ * upstraeam-daltonism.js
+ *
+ * @author     GdH <G-dH@github.com>, A. Pennucci <apennucci@protonmail.com>
+ * @copyright  2022-2025
+ * @license    GPL-3.0
+ */
+
 'use strict';
 import * as M from './matrix.js';
 
