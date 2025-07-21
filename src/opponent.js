@@ -10,15 +10,59 @@
 // Opponent Color Solver
 //
 // Instead of prescribing a specific transformation to correct for reduced
-// sensitivity of a cone, this filter solves for a color that will look the way
-// it was intended to, to a viewer with reduced cone sensitivity. This approach
-// is certainly less efficient than the typical linear transformations and looks
-// only slightly better, but it *does* look better.
+// sensitivity of a cone, this filter searches for a color that will look the way
+// it was intended to, to a viewer with reduced cone sensitivity. The color
+// blindness model used here is more or less the one described by Machado et al.
+// Its use of opponent color provides a concrete point of reference for how
+// colors are meant to be perceived that makes it easier to reason with a solver
+// like this.
 //
-// The color blindness model used here is more or less the one described by
-// Machado et al. Its use of opponent color provides a concrete point of
-// reference for how colors are meant to be perceived that makes it easier to
-// reason with a solver like this.
+// A color's position in opponent color space tells us how it will look to the
+// brain. The more closely our filter can match the stimulus that a colorblind
+// person's brain receives to what a trichromat's brain would receive, the more
+// accurately the color will be perceived. Machado et al. use the reverse of
+// this to simulate color blindness: their simulation produces a color that
+// stimulates a trichromat's brain the way the original color would have
+// stimulated a colorblind person's.
+//
+// That works well for simulating color blindness because color blindness
+// reduces the color gamut, so the result is always within the RGB gamut.
+// Reversing the transformation to correct for color blindness would widen the
+// gamut and require colors that our displays can't produce!
+//
+// To build a correction filter that doesn't just saturate colors, it's
+// necessary to correct the appearance of each color (i.e. try to match its
+// position in opponent color space) while also limiting the change in RGB value
+// that the filter is allowed to make (i.e. try to match its position in RGB
+// space). Finding an optimial solution is now an optimization problem that can
+// be handled with ordinary techniques.
+//
+// To do so, we define a cost function as the sum of the square of the distance
+// in opponent color space and the square of the distance in RGB space (the math
+// is simpler this way). Different components are weighted differently, with RGB
+// distance having a low (but non-zero) weight and the luminance component in
+// opponent space having a high weight because luma errors are much more visible
+// than chroma. Starting at the original RGB value, we use a few iterations of
+// gradient descent to find a local minimum in the cost function. To decide the
+// step size, the derivative of the cost function along the gradient is solved
+// for zero. Deriving the various equations is excruciatingly boring, mechanical
+// calculus that won't be repeated here.
+//
+// c(r,g,b) = W_r*(r_c - R_0)^2
+//          + W_g*(g_c - G_0)^2
+//          + W_b*(b_c - B_0)^2
+//          + W_v*(v_c - V_i)^2
+//          + W_yb*(yb_c - YB_i)^2
+//          + W_rg*(rg_c - RG_i)^2
+//
+// There's probably a really clever way to minimize that function analytically,
+// but I don't know it and GPU cycles are pretty cheap.
+//
+// Most of the actual magic of this filter is in the conditioning of the
+// RGB-to-opponent transforms. Without conditioning them, simulating a
+// difference in sensitivity would introduce chroma errors to grayscale colors
+// and luma errors on most colors. The specifics of this conditioning are still
+// worked on, so the best reference is the comments in getRGB2Opp().
 //
 // Valuable reading:
 //
@@ -68,7 +112,6 @@ const lms2opp = useWandell
 const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
 
 function getRGB2Opp(whichCone = -1, factor = 0) {
-
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
     const sim_rgb2lms = whichCone === -1
         ? rgb2lms
@@ -143,7 +186,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     // evaluate gradient at current rgb coordinates
                     vec3 grad = rgb2var * rgb + grad_const;
 
-                    // line search for zero derivative of cost
+                    // pick a step size by solving the derivative for zero
                     vec3 sim_grad = rgb2sim * grad;
                     float num =
                         dot(rgb_weights, (rgb - orig_rgb) * grad) +
@@ -171,33 +214,16 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         // RGB gamut for high factors.
         const rgb_weights = [1, 1, 1];
 
-        // To correct for reduced cone sensitivity, search for an RGB value
-        // that produces a point in opponent-color space for a colorblind
-        // viewer that is close to the intended point. Luma errors are much
-        // more visible than chroma, so they should be reduced compared to
-        // chroma errors. Finally, the RGB gamut is finite, so values that
-        // differ greatly from the original RGB should be avoided. So,
-        // minimize a cost function:
-        // c(r,g,b) = W_r*(r_c - R_0)^2
-        //          + W_g*(g_c - G_0)^2
-        //          + W_b*(b_c - B_0)^2
-        //          + W_v*(v_c - V_i)^2
-        //          + W_yb*(yb_c - YB_i)^2
-        //          + W_rg*(rg_c - RG_i)^2
-        // i.e. the square of the distance in opponent-color space between
-        // the simulated corrected image and the intended image, plus the
-        // square of the distance in RGB space between the corrected image
-        // and the original, but with some components possibly weighted
-        // differently.
-        //
-        // There's probably a really clever way to solve this analytically,
-        // but I don't know it and GPU cycles are pretty cheap. A couple of
-        // iterations of gradient descent produce a very accurate result.
-
+        // RGB to opponent color, ideal
         const rgb2ideal = getRGB2Opp();
+        // RGB to opponent color, simulated color blindness
         const rgb2sim = getRGB2Opp(whichCone, factor);
 
         this.set_uniforms({
+            // The derivative of the cost function splits nicely in half, with
+            // one half based on the initial RGB value and the other on the
+            // corrected value.
+            //
             // As a minor optimization, the constant half of the partial
             // derivatives in the gradient are calculated only once.
             rgb2const: M.scale3(-2,
@@ -220,8 +246,8 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                             M.diagonal(opp_weights),
                             rgb2sim)))),
 
-            // The shader needs to know a lot about the cost function to
-            // solve its derivative for zero.
+            // The shader needs a lot of information about the cost function to
+            // solve its derivative for zero when deciding on a step size.
             rgb2ideal,
             rgb2sim,
             rgb_weights,
@@ -230,6 +256,8 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
     }
 }
 
+// Color blindness only reduces the gamut, so there's no need for cost function
+// shenanigans when simulating. A simple linear transform is sufficient.
 export function getSimulationMatrix(properties) {
     const { isCorrection, whichCone, factor } = properties;
 

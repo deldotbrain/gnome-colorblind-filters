@@ -105,10 +105,8 @@ As general guidelines:
 ### "Opponent Color Solver" Filters
 
 This filter is radically different from anything else in this extension, and
-from any other filter the developer has seen in the wild. Whether that's a good
-thing or not remains to be seen.
-
-This filter operates in [opponent color
+from any other filter the developer has seen in the wild. It operates in
+[opponent color
 space](https://foundationsofvision.stanford.edu/chapter-9-color/#Opponent-Colors)
 and is built on the work of [Machado et
 al.](https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html)
@@ -116,40 +114,31 @@ to simulate color blindness. While their proposed simulation isn't considered
 to be as accurate as others, its use of opponent color makes a very different
 approach to correction possible.
 
-The correction filter searches RGB space for a color which the colorblind
-observer is expected to perceive as the original color was intended. To do
-this, it defines a cost function based on the squares of the color's distance
-from the intended color in simulated opponent-color space and from the original
-color in RGB space. The filter searches near the original color using a couple
-iterations of gradient descent to find an RGB value with minimal cost.
+Typically, color blindness correction filters describe a way of converting a
+color into a different color in the hope that it will look "better", for some
+definition of "better". Instead, this filter searches for a color that will
+stimulate a colorblind viewer's brain the same way the original color would
+have stimulated a trichromat's brain, but also tries not to change the RGB
+values of the color by too much. Making the filter dynamically balance those
+goals causes it to make changes it wouldn't otherwise: when correcting for
+tritanomaly, it lightens bright blues to make them more visible instead of just
+cranking up the blue value; when correcting for prot/deuteranomaly, it adds
+some blue to reds to help distinguish them; etc.
 
-Treating correction as an optimization problem prevents the resulting color
-from going too far outside of the RGB gamut and from distorting the image too
-much for non-colorblind observers. That encourages the filter to make changes
-that it wouldn't otherwise: when correcting for tritanomaly, it lightens blues
-to make them more visible instead of just cranking up the blue value; when
-correcting for prot/deuteranomaly, it adds some blue to reds to help
-distinguish them, etc.
-
-This approach is necessarily much more expensive than other filters (probably
-by a factor of 20-30, though it still doesn't add up to much actual
-utilization), but yields results that (at least to the developer's
-tritanomalous eyes) look more natural. While there are probably some
-optimizations that could be made to the filter algorithm, this filter will
-always be more complex to execute than daltonization, and daltonization (and
-linear filters more generally) fundamentally cannot make the same modifications
-that this filter does. Is it worth it? You decide.
+Searching for a color this way does require more resources than the simple
+linear transformations that other filters use (probably by a factor of 20-30),
+though it still doesn't add up to much actual utilization. At least to the
+developer's eyes, the results are well worth the extra computation. Besides,
+GPUs are awfully fast.
 
 The simulation filter applies a trivial linear transformation (uses the
 colorblind conversion from RGB to opponent color, then the non-colorblind
-conversion back to RGB). It doesn't need to do any fancy cost function
-optimization because color blindness only ever reduces the gamut, so the result
-of a linear transformation will always be within the RGB gamut. This filter
-isn't (currently) terribly accurate, but it provides valuable insight into how
-the OCS filter understands color blindness and what it's actually trying to
-correct for. Note that although the approach used by this filter is similar to
-the work of Machado et al., it is **not** the same simulation and shouldn't be
-taken as a representation of their work!
+conversion back to RGB). This filter isn't (currently) terribly accurate, but
+it provides valuable insight into how the correction filter understands color
+blindness and what it's actually trying to correct for. Note that although the
+approach used by this filter is similar to the work of Machado et al., it is
+**not** the same simulation and shouldn't be taken as a representation of their
+work!
 
 This filter is still very much under development. The developer thinks the
 correction filter already looks better than other filters, but there is still
