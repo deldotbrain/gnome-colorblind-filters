@@ -8,10 +8,6 @@
           packages = [
             just
 
-            # For lms_matrices.py
-            python3
-            python3.pkgs.numpy
-
             # Run from command line
             gjs
             clutter

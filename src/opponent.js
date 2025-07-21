@@ -33,22 +33,10 @@
 import GObject from 'gi://GObject';
 import { ColorblindFilter } from './shader_base.js';
 import * as M from './matrix.js';
+import { srgb_to_d65_xyz, hpe_d65_xyz_to_lms } from './constants.js';
 
 // Which LMS-to-Opponent transform to use; doesn't seem to make much difference
 const useWandell = true;
-
-// See lms_matrices.py for where the magic numbers come from.
-const rgb2lms = [
-    0.31399021620,
-    0.15537240628,
-    0.01775238698,
-    0.63951293834,
-    0.75789446163,
-    0.10944209440,
-    0.04649754622,
-    0.08670141862,
-    0.87256922462,
-];
 
 // Convert L, M, S into V, R-G, Y-B (green, blue positive)
 const lms2opp = useWandell
@@ -77,7 +65,10 @@ const lms2opp = useWandell
         0.700,
     ];
 
+const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
+
 function getRGB2Opp(whichCone = -1, factor = 0) {
+
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
     const sim_rgb2lms = whichCone === -1
         ? rgb2lms
