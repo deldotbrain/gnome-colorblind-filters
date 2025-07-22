@@ -111,25 +111,36 @@ const lms2opp = useWandell
 
 const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
 
-function getRGB2Opp(whichCone = -1, factor = 0) {
+function getTransforms(whichCone, factor) {
+    const both = function(inputs, fn) {
+        const ret = {};
+        for (const i in inputs) {
+            ret[i] = fn(inputs[i]);
+        }
+        return ret;
+    }
+
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
-    const sim_rgb2lms = whichCone === -1
-        ? rgb2lms
-        : M.setRow3(rgb2lms, whichCone, [
-            () => M.add3(
-                M.scale3(1 - factor, M.getRow3(rgb2lms, 0)),
-                M.scale3(factor * 0.96, M.getRow3(rgb2lms, 1))),
-            () => M.add3(
-                M.scale3(factor, M.getRow3(rgb2lms, 0)),
-                M.scale3((1 - factor) / 0.96, M.getRow3(rgb2lms, 1))),
-            () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
-        ][whichCone]());
+    const sim_rgb2lms = M.setRow3(rgb2lms, whichCone, [
+        () => M.add3(
+            M.scale3(1 - factor, M.getRow3(rgb2lms, 0)),
+            M.scale3(factor * 0.96, M.getRow3(rgb2lms, 1))),
+        () => M.add3(
+            M.scale3(factor, M.getRow3(rgb2lms, 0)),
+            M.scale3((1 - factor) / 0.96, M.getRow3(rgb2lms, 1))),
+        () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
+    ][whichCone]());
+
+    const r2l = { ideal: rgb2lms, sim: sim_rgb2lms, };
 
     // Use L+M+S for luminance. With factor = 0, rgb2lms is normalized so that
     // this is equivalent to R+G+B, but this allows the simulated change in
     // sensitivity to be applied to luminance as well.
     const mod_lms2opp = M.setRow3(lms2opp, 0, [1, 1, 1]);
-    const rgb2opp = M.mult3x3(mod_lms2opp, sim_rgb2lms);
+    const rgb2opp = both(r2l, r2l => M.mult3x3(mod_lms2opp, r2l));
+
+    const row_sum = (mat, row_num, elem_map = x => x) =>
+        M.getRow3(mat, row_num).reduce((a, v) => a + elem_map(v), 0);
 
     // Scale rows so that each opponent component has a range of 1, sort of.
     // Normalizing the simulated luma row avoids an erroneous correction for
@@ -137,26 +148,29 @@ function getRGB2Opp(whichCone = -1, factor = 0) {
     // properly simulates the loss of contrast and encourages an aggressive
     // correction. At least for tritan, that means dark blues and light yellows
     // are more vibrant, which I like.
-    const nom_rgb2opp = whichCone === -1 ? rgb2opp
-        : M.setRow3(M.mult3x3(mod_lms2opp, rgb2lms),
-            0, M.getRow3(rgb2opp, 0));
-    const r2o_scaled = M.mult3x3(
-        M.diagonal(M.gen3(i =>
-            1 / M.getRow3(nom_rgb2opp, i).reduce((a, v) => a + Math.abs(v), 0))),
-        rgb2opp);
+    const scaled = both(rgb2opp, r2o => {
+        const ref = M.setRow3(rgb2opp.ideal, 0, M.getRow3(r2o, 0));
+        return M.mult3x3(
+            M.diagonal(M.gen3(i => 1 / row_sum(ref, i, Math.abs))),
+                //1 / M.getRow3(ref, i).reduce((a, v) => a + Math.abs(v), 0))),
+            r2o);
+    });
 
-    // Offset luma rows so that luma components are 0 for R=G=B (i.e. grays).
-    // This prevents the incorrect and colorful "correction" of grays. This
-    // feels weird because it changes the ratio of the components, but only
-    // the absolute difference between them matters.
-    const condition = row => {
-        const offset = -(row[0] + row[1] + row[2]) / 3;
-        return M.gen3(i => row[i] + offset);
+    // Align "neutral" chroma values with a small offset proportional to luma.
+    // Otherwise, a chroma error appears on grays due to the different
+    // sensitivity, causing an unwanted correction.
+    const row_offset = row_num => {
+        const ideal_white = M.dot3(M.getRow3(scaled.ideal, row_num), [1,1,1]);
+        const sim_white = M.dot3(M.getRow3(scaled.sim, row_num), [1,1,1]);
+        return sim_white - ideal_white;
     };
-    return M.fromRows(
-        M.getRow3(r2o_scaled, 0),
-        condition(M.getRow3(r2o_scaled, 1)),
-        condition(M.getRow3(r2o_scaled, 2)));
+    const correct_offset = M.sub3x3(
+        M.identity3x3(),
+        M.gen3x3((r, c) => c === 0 && r !== 0 ? row_offset(r) : 0));
+    return {
+        ideal: scaled.ideal,
+        sim: M.mult3x3(correct_offset, scaled.sim),
+    }
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {
@@ -214,10 +228,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         // RGB gamut for high factors.
         const rgb_weights = [1, 1, 1];
 
-        // RGB to opponent color, ideal
-        const rgb2ideal = getRGB2Opp();
-        // RGB to opponent color, simulated color blindness
-        const rgb2sim = getRGB2Opp(whichCone, factor);
+        const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
         this.set_uniforms({
             // The derivative of the cost function splits nicely in half, with
@@ -261,8 +272,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
 export function getSimulationMatrix(properties) {
     const { isCorrection, whichCone, factor } = properties;
 
-    const rgb2ideal = getRGB2Opp();
-    const rgb2sim = getRGB2Opp(whichCone, factor);
+    const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
     return isCorrection
         ? M.mult3x3(M.inverse3x3(rgb2sim), rgb2ideal)
