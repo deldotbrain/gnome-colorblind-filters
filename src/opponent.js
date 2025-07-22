@@ -112,13 +112,13 @@ const lms2opp = useWandell
 const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
 
 function getTransforms(whichCone, factor) {
-    const both = function(inputs, fn) {
+    const both = (inputs, fn) => {
         const ret = {};
         for (const i in inputs) {
             ret[i] = fn(inputs[i]);
         }
         return ret;
-    }
+    };
 
     // Alter rgb2lms according to Machado et al.'s model for cone sensitivity
     const sim_rgb2lms = M.setRow3(rgb2lms, whichCone, [
@@ -131,13 +131,13 @@ function getTransforms(whichCone, factor) {
         () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
     ][whichCone]());
 
-    const r2l = { ideal: rgb2lms, sim: sim_rgb2lms, };
+    const r2l = { ideal: rgb2lms, sim: sim_rgb2lms };
 
     // Use L+M+S for luminance. With factor = 0, rgb2lms is normalized so that
     // this is equivalent to R+G+B, but this allows the simulated change in
     // sensitivity to be applied to luminance as well.
     const mod_lms2opp = M.setRow3(lms2opp, 0, [1, 1, 1]);
-    const rgb2opp = both(r2l, r2l => M.mult3x3(mod_lms2opp, r2l));
+    const rgb2opp = both(r2l, mat => M.mult3x3(mod_lms2opp, mat));
 
     const row_sum = (mat, row_num, elem_map = x => x) =>
         M.getRow3(mat, row_num).reduce((a, v) => a + elem_map(v), 0);
@@ -152,7 +152,6 @@ function getTransforms(whichCone, factor) {
         const ref = M.setRow3(rgb2opp.ideal, 0, M.getRow3(r2o, 0));
         return M.mult3x3(
             M.diagonal(M.gen3(i => 1 / row_sum(ref, i, Math.abs))),
-                //1 / M.getRow3(ref, i).reduce((a, v) => a + Math.abs(v), 0))),
             r2o);
     });
 
@@ -160,8 +159,8 @@ function getTransforms(whichCone, factor) {
     // Otherwise, a chroma error appears on grays due to the different
     // sensitivity, causing an unwanted correction.
     const row_offset = row_num => {
-        const ideal_white = M.dot3(M.getRow3(scaled.ideal, row_num), [1,1,1]);
-        const sim_white = M.dot3(M.getRow3(scaled.sim, row_num), [1,1,1]);
+        const ideal_white = M.dot3(M.getRow3(scaled.ideal, row_num), [1, 1, 1]);
+        const sim_white = M.dot3(M.getRow3(scaled.sim, row_num), [1, 1, 1]);
         return sim_white - ideal_white;
     };
     const correct_offset = M.sub3x3(
@@ -170,7 +169,7 @@ function getTransforms(whichCone, factor) {
     return {
         ideal: scaled.ideal,
         sim: M.mult3x3(correct_offset, scaled.sim),
-    }
+    };
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {

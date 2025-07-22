@@ -10,8 +10,6 @@
 
 // NB: all matrices are column-major!
 
-import * as M from './matrix.js';
-
 // sRGB to XYZ from https://en.wikipedia.org/wiki/SRGB#Primaries:
 export const srgb2xyz = [
     0.4124,

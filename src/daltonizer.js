@@ -27,8 +27,8 @@ let transforms = null;
 function get_transforms(family) {
     if (transforms === null) {
         transforms = {
-            HPE: { rgb2lms: M.mult3x3(C.hpe_d65_xyz_to_lms, C.srgb_to_d65_xyz), },
-            AOSP: { rgb2lms: M.mult3x3(C.ciecam02, C.srgb2xyz), },
+            HPE: { rgb2lms: M.mult3x3(C.hpe_d65_xyz_to_lms, C.srgb_to_d65_xyz) },
+            AOSP: { rgb2lms: M.mult3x3(C.ciecam02, C.srgb2xyz) },
         };
 
         for (const fam in transforms) {
