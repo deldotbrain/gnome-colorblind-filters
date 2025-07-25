@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: colorblind-filters-advanced\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-20 15:24+0200\n"
+"POT-Creation-Date: 2025-07-24 15:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,126 +17,114 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: extension.js:65
+#: src/extension.js:65
 msgid "Colorblind Filters"
 msgstr ""
 
-#: extension.js:349
+#: src/extension.js:355
 msgid "Enable Filter"
 msgstr ""
 
-#: extension.js:360 extension.js:363
+#: src/extension.js:366 src/extension.js:369
 msgid "Filter Strength"
 msgstr ""
 
-#: extension.js:395
+#: src/extension.js:403
 msgid "Filter Modes"
 msgstr ""
 
-#: extension.js:396
+#: src/extension.js:404
 msgid "Color Blindness Types"
 msgstr ""
 
-#: extension.js:398
+#: src/extension.js:406
 msgid "Filter Algorithms"
 msgstr ""
 
-#: extension.js:400 filter.js:30
+#: src/extension.js:408 src/filter.js:30
 msgid "Other Effects"
 msgstr ""
 
-#: extension.js:405
+#: src/extension.js:413
 msgid "Use Alternate Transform"
 msgstr ""
 
-#: extension.js:414
+#: src/extension.js:422
 msgid "High Contrast Mode"
 msgstr ""
 
-#: filter.js:18
+#: src/filter.js:18
 msgid "Color Blindness Correction"
 msgstr ""
 
-#: filter.js:24
+#: src/filter.js:24
 msgid "Color Blindness Simulation"
 msgstr ""
 
-#: filter.js:39
+#: src/filter.js:39
 msgid "Channel Mixer - GBR"
 msgstr ""
 
-#: filter.js:46
+#: src/filter.js:46
 msgid "Channel Mixer - BRG"
 msgstr ""
 
-#: filter.js:53
+#: src/filter.js:53
 msgid "Desaturation"
 msgstr ""
 
-#: filter.js:60
+#: src/filter.js:60
 msgid "Lightness Inversion"
 msgstr ""
 
-#: filter.js:67
+#: src/filter.js:67
 msgid "Color Inversion"
 msgstr ""
 
-#: filter.js:74
-msgid "Dim Colors in Linear"
-msgstr ""
-
-#: filter.js:85
-msgid "Dim Colors in sRGB"
-msgstr ""
-
-#: filter.js:99
+#: src/filter.js:99
 msgid "Protanopia"
 msgstr ""
 
-#: filter.js:104
+#: src/filter.js:104
 msgid "Deuteranopia"
 msgstr ""
 
-#: filter.js:109
+#: src/filter.js:109
 msgid "Tritanopia"
 msgstr ""
 
-#: filter.js:117
+#: src/filter.js:117
 msgid "Opponent Color Solver"
 msgstr ""
 
-#: filter.js:130
-msgid "Linear Opponent Color"
-msgstr ""
-
-#: filter.js:142
+#: src/filter.js:142
 msgid "GdH's Filters"
 msgstr ""
 
-#: filter.js:154
+#: src/filter.js:154
 msgid "Error Steering"
 msgstr ""
 
-#: filter.js:168
+#: src/filter.js:168
 msgid "Daltonize"
 msgstr ""
 
-#: filter.js:182
+#: src/filter.js:182
 msgid "Android"
 msgstr ""
 
-#: filter.js:199
+#: src/filter.js:199
 msgid "Modified Transform"
 msgstr ""
 
-#: filter.js:204
+#: src/filter.js:204
 msgid "Typical Transform"
 msgstr ""
 
-#: filter.js:212
+#: src/filter.js:212
 msgid "High Contrast"
 msgstr ""
 
-#: filter.js:217
+#: src/filter.js:217
 msgid "Normal Contrast"
 msgstr ""

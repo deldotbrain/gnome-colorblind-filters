@@ -70,7 +70,7 @@ check_pot: $(BUILD_TMP)/po/$(NAME).pot
 		<(grep '^msgid' $< | sort | uniq) \
 		<(grep '^msgid' po/$(NAME).pot | sort | uniq) \
 		&>/dev/null; then \
-		echo -e '\e[1;31mWarning: po/$(NAME) is out of date\e[0m'; \
+		echo -e '\e[1;31mWarning: po/$(NAME).pot is out of date\e[0m'; \
 	fi
 
 # This removes all temporary files created with the other recipes.
