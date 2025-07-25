@@ -14,6 +14,8 @@ BUILD_TMP ?= build$(sfx)
 
 js_files = $(wildcard src/*.js)
 locales_po = $(wildcard po/*.po)
+schema_out = $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
+schema_in = schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
 
 ifneq ($(shell which msgfmt xgettext &>/dev/null; echo $$?),0)
 warn_gettext:
@@ -32,7 +34,7 @@ endif
 zip_generated = \
 		$(BUILD_TMP)/metadata.json \
 		$(BUILD_TMP)/schemas/gschemas.compiled \
-		$(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml \
+		$(schema_out) \
 		$(locales_mo)
 zip_asis = $(patsubst src/%,$(BUILD_TMP)/%,$(js_files))
 
@@ -85,7 +87,7 @@ $(BUILD_TMP)/metadata.json: metadata.json $(BUILD_TMP)
 		cp $< $@; \
 	fi
 
-$(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
+$(schema_out): $(schema_in)
 	mkdir -p $(BUILD_TMP)/schemas
 	if [ -n "$(SUFFIX)" ]; then \
 		xmlstarlet ed \
@@ -97,7 +99,7 @@ $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml: schemas/or
 	fi
 
 # Compiles the gschemas.compiled file from the gschema.xml file.
-$(BUILD_TMP)/schemas/gschemas.compiled: $(BUILD_TMP)/schemas/org.gnome.shell.extensions.$(PNAME).gschema.xml
+$(BUILD_TMP)/schemas/gschemas.compiled: $(schema_out)
 	glib-compile-schemas $(BUILD_TMP)/schemas
 
 $(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
