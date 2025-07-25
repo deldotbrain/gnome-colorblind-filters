@@ -4,7 +4,7 @@
  *
  * @author     A. Pennucci <apennucci@protonmail.com>
  * @copyright  2025
- * @license    GPL-3.0 or MIT, others upon request
+ * @license    0BSD
  */
 
 // Opponent Color Solver

@@ -9,6 +9,15 @@ Solver" filter is a significant improvement over the state of the art. Other
 filters are also provided, such as those from GdH's Colorblind Filters
 extension and from Android phones.
 
+Filters to simulate color blindness are provided to help developers understand
+how colorblind users see. However, these aren't the focus of this extension, so
+options are limited. The most accurate simulation algorithms don't have a
+corresponding correction algorithm, so they haven't been added to the extension
+yet. If there's a need for those filters, they could be added upon request.
+
+A few effects from the original extension that aren't related to color
+blindnesss are included as well.
+
 This extension was forked from [the original on
 GitHub](https://github.com/G-dH/gnome-colorblind-filters). This extension has
 more filter options and a different user interface.
@@ -21,8 +30,8 @@ more filter options and a different user interface.
 
 Should support GNOME Shell 45 - 48, but older versions are not tested.
 
-To build from source, you'll need GNU `make` and `zip`. Depending on your
-distro, you might also need a development package for `glib`. `gettext` is
+To build from source, you'll need `git`, GNU `make` and `zip`. Depending on
+your distro, you might also need a development package for `glib`. `gettext` is
 optional to build translations (but the extension hasn't been translated yet).
 
 Once you have the dependencies installed, fetch the source and run `make
@@ -85,22 +94,20 @@ preference for which algorithm works "best".
 
 As general guidelines:
 
-- "Opponent Color Solver" is preferred by the developer for correcting their
-  moderate tritanomaly. This algorithm is being developed as part of this
-  extension, so any feedback you can provide is helpful!
-- "Error Steering" (only for correction) works well for fixing visibility
-  problems for tritanomaly, but hasn't been tuned or validated for other color
-  blindness types. Check out [this
+- "Opponent Color Solver" is the default and is thought by the developer to be
+  more effective and natural-looking than other algorithms. This algorithm is
+  being developed as part of this extension, so any feedback you can provide is
+  helpful!
+- "Error Steering" (only for correction) works well for aggressively fixing
+  visibility problems, including for severe color blindness. However, it hasn't
+  been tuned for color blindness types other than tritanomaly. Check out [this
   issue](https://github.com/deldotbrain/gnome-colorblind-filters/issues/2) if
-  you'd like to help fix that!
+  you'd like to help tune it.
 - "GdH's Filters" are the filters that the original Colorblind Filters
   extension provides. Many people like them.
 - "Daltonize" is more or less the same algorithm used by most other
   simulation/correction filters.
-- "Android" is the slightly funky version of "Daltonize" used by Android. [The
-  developer thinks the funkiness is a bug in Android, and originally started
-  this project to prove
-  it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1)
+- "Android" is the slightly funky version of "Daltonize" used by Android.
 
 ### "Opponent Color Solver" Filters
 
@@ -133,7 +140,7 @@ GPUs are awfully fast.
 
 The simulation filter applies a trivial linear transformation (uses the
 colorblind conversion from RGB to opponent color, then the non-colorblind
-conversion back to RGB). This filter isn't (currently) terribly accurate, but
+conversion back to RGB). The simulation's accuracy hasn't been validated, but
 it provides valuable insight into how the correction filter understands color
 blindness and what it's actually trying to correct for. Note that although the
 approach used by this filter is similar to the work of Machado et al., it is
@@ -160,12 +167,19 @@ deuteranopia, similar to the original extension.
 
 ### "Daltonize"
 
-Daltonization filters like this work by finding a plane in [LMS
+[Daltonization
+filters](http://www.daltonize.org/2010/05/lms-daltonization-algorithm.html)
+like this work by finding a plane in [LMS
 space](https://en.wikipedia.org/wiki/LMS_color_space) that includes both the
 black-to-white and black-to-(some unaffected color) vectors, then projecting
 the LMS value of a color down onto it to simulate the loss of sensitivity to
 the affected color. If correcting for color blindness, the stimulus that was
 lost in the process is spread over the unaffected cones.
+
+If that description sounds too sterile and mathematical to describe a
+biological and physical process, that's because it is. These filters are known
+for efficiently producing acceptable results, not for their accuracy. That
+said, their simplicity is a very valuable property.
 
 ### "Error Steering"
 
@@ -181,13 +195,19 @@ visible in the ways it's commonly used in computer UIs. Conversely, this filter
 also subtracts white from yellow, making it easier to distinguish yellow from
 white.
 
+[This approach should also be helpful for other types of color blindness, but
+feedback is needed to figure out how to tune the filter to be most
+effective.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/2)
+
 ### "Android"
 
 This is the daltonization filter used in Android. It uses a poorly-selected
 transform into LMS color space that causes it to look worse than other filters.
-Otherwise, it is similar to other
-[daltonization](http://www.daltonize.org/2010/05/lms-daltonization-algorithm.html)
-filters.
+Otherwise, it is similar to other daltonization filters.
+
+[The developer thinks the worse appearance is a bug in Android, and originally
+started this project to prove
+it.](https://github.com/deldotbrain/gnome-colorblind-filters/issues/1)
 
 ### Side-note: "Modified" Transform for Tritanopia
 
@@ -199,21 +219,23 @@ constant when simulating, changing the appearance of greens considerably.
 The "Modified" transform holds the difference between red and green constant,
 balancing the change in their appearance between them. To the developer's eyes,
 this looks less weird, but there is no evidence to say that it's more accurate.
-(Accuracy was never really a consideration for these algorithms to begin with.)
+(Accuracy was never really a consideration for daltonization algorithms to
+begin with.)
 
 ## Contribution
 Consider contributing to the [original
 extension](https://github.com/G-dH/gnome-colorblind-filters) instead of this
-fork. The original has many more users, so your contribution will can help more
+fork. The original has many more users, so your contribution can help more
 people. Of course, if you'd prefer to work on this extension, your
 contributions are welcome! Please open issues and PRs [on
 GitHub](https://github.com/deldotbrain/gnome-colorblind-filters). PRs [on
 Codeberg](https://codeberg.org/amyp/gnome-colorblind-filters) are also
 accepted.
 
+## Donations
 The developer doesn't need or want donations for their work. If you find it
 valuable, please consider donating to an organization that provides direct
-support to their queer siblings. [Pride Center of
+support to their queer siblings. For example, [Pride Center of
 Vermont](https://www.pridecentervt.org/), [Trevor
 Project](https://www.thetrevorproject.org/), and [Rainbow
 Railroad](https://www.rainbowrailroad.org/) always need support. Alternatively,
@@ -221,3 +243,8 @@ feel free to [buy the author of the original extension a
 coffee](https://buymeacoffee.com/georgdh). His extension inspired the developer
 to start thinking about filters like these and provided a great starting point
 to experiment.
+
+## License
+This code is distributed under the terms of the GNU General Public License
+version 3.0. The files related to the Opponent Color Solver filters may also be
+used under the terms of the Zero-Clause BSD License.
