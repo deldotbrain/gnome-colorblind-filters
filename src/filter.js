@@ -6,6 +6,7 @@
  * @copyright  2025
  * @license    GPL-3.0
  */
+'use strict';
 
 import * as Shaders from './shaders.js';
 import * as Opponent from './opponent.js';
