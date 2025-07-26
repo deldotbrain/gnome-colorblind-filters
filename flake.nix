@@ -1,6 +1,6 @@
 {
   outputs =
-    { nixpkgs, self }:
+    { nixpkgs, self }@inputs:
     let
       inherit (nixpkgs) lib;
 
@@ -41,6 +41,13 @@
           name = "gnome-colorblind-filters-deps";
           paths = devDeps pkgs;
         };
+
+        testVm =
+          (nixpkgs.lib.nixosSystem {
+            inherit (pkgs) system;
+            specialArgs.flakeInputs = inputs;
+            modules = [ ./test-vm.nix ];
+          }).config.system.build.vm;
       });
 
       devShells = mkAttr (pkgs: {
