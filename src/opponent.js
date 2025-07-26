@@ -62,7 +62,7 @@
 // RGB-to-opponent transforms. Without conditioning them, simulating a
 // difference in sensitivity would introduce chroma errors to grayscale colors
 // and luma errors on most colors. The specifics of this conditioning are still
-// worked on, so the best reference is the comments in getRGB2Opp().
+// being worked on, so the best reference is the comments in getRGB2Opp().
 //
 // Valuable reading:
 //
@@ -84,7 +84,8 @@ const useWandell = true;
 
 // Convert L, M, S into V, R-G, Y-B (green, blue positive)
 const lms2opp = useWandell
-    // From Wandell
+    // From Wandell, who very deliberately says that this is just one data
+    // point, not an absolute, general truth. We'll use it that way anyway.
     ? [
         1.00,
         -0.59,
@@ -199,11 +200,12 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     // evaluate gradient at current rgb coordinates
                     vec3 grad = rgb2var * rgb + grad_const;
 
-                    // pick a step size by solving the derivative for zero
+                    // pick a step size by solving the derivative of cost wrt
+                    // step size for zero.
                     vec3 sim_grad = rgb2sim * grad;
                     float num =
                         dot(rgb_weights, (rgb - orig_rgb) * grad) +
-                        dot(opp_weights * sim_grad, rgb2sim * rgb - opp_ideal);
+                        dot(opp_weights, (rgb2sim * rgb - opp_ideal) * sim_grad);
                     float den =
                         dot(rgb_weights, grad * grad) +
                         dot(opp_weights, sim_grad * sim_grad);
@@ -215,11 +217,10 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     float step = num / den;
                     rgb -= step * grad;
                 }
-                `);
+            `);
     }
 
     updateEffect(properties) {
-        const { whichCone, factor } = properties;
         // Cost of the opponent-space errors; first component is luma
         const opp_weights = [250, 50, 50];
         // Cost of adjustment away from original RGB value. Has little
@@ -227,6 +228,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         // RGB gamut for high factors.
         const rgb_weights = [1, 1, 1];
 
+        const { whichCone, factor } = properties;
         const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
         this.set_uniforms({
@@ -270,7 +272,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
 // shenanigans when simulating. A simple linear transform is sufficient.
 export function getSimulationMatrix(properties) {
     const { isCorrection, whichCone, factor } = properties;
-
     const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
     return isCorrection

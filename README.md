@@ -16,7 +16,7 @@ corresponding correction algorithm, so they haven't been added to the extension
 yet. If there's a need for those filters, they could be added upon request.
 
 A few effects from the original extension that aren't related to color
-blindnesss are included as well.
+blindness are included as well.
 
 This extension was forked from [the original on
 GitHub](https://github.com/G-dH/gnome-colorblind-filters). This extension has
@@ -26,9 +26,25 @@ more filter options and a different user interface.
 
 ![Colorblind Filters Advanced menu](colorblind-filters-advanced.png)
 
-## Installation from Source
+## Installation
 
 Should support GNOME Shell 45 - 48, but older versions are not tested.
+
+### From GNOME Extensions
+
+TBD
+
+### On NixOS
+
+Using flakes, add
+`git+https://codeberg.org/amyp/gnome-colorblind-filters.git?ref=main` as a
+flake input. Add its `packages.<system>.default` output to your
+`environment.systemPackages` (NixOS) or `home.packages` (home-manager).
+
+If you prefer not to use flakes, you can `callPackage` the `package.nix` file
+directly. Make sure to explicitly pass a `version` or `srcRev` argument.
+
+### From Source
 
 To build from source, you'll need `git`, GNU `make` and `zip`. Depending on
 your distro, you might also need a development package for `glib`. `gettext` is
@@ -41,11 +57,13 @@ install`:
     cd gnome-colorblind-filters
     make install
 
-Then, either reload GNOME Shell (X11 only; press Alt+F2 and enter "r") or log
-out and back in (X11 and Wayland) to load the extension. Enable it in the
-Extensions app.
+## Getting Started
 
-## Quick Start
+### Configuring the Extension
+
+Once installed, either reload GNOME Shell (only works on X11; press Alt+F2 and
+enter "r") or log out and back in (works on both X11 and Wayland) to load the
+extension. Enable it in the Extensions app.
 
 Once enabled, a new button will appear in the Quick Settings menu. Clicking
 it toggles the currently-selected filter, and opening it reveals configuration
@@ -55,8 +73,6 @@ For correcting color blindness, the defaults should be pretty reasonable, just
 pick your color blindness type from the menu, turn the filter on, and adjust
 the strength slider until things look okay. If nothing looks good, or if you
 just like to tinker, try changing the algorithm (see below).
-
-## Other Setup Instructions
 
 ### Filtering Fullscreen Applications
 

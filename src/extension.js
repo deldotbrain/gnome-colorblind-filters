@@ -9,8 +9,10 @@
 'use strict';
 
 // FIXME: I'd really prefer that the menu not collapse after every action (yes,
-// reviewer, I'm well aware that this is complicated enough to have a dedicated
-// preferences dialog, to which I say: meh.)
+// reviewer, I'm well aware that the settings UI is complicated enough to have a
+// dedicated dialog, to which I say: meh.)
+
+// TODO: open a bug with gnome about broken slider destroy
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
@@ -28,6 +30,9 @@ import {
     get_algorithms, tritan_hack_allowed, high_contrast_allowed,
 } from './filter.js';
 
+/**
+ * Set up and tear down the extension's actual functionality
+ */
 export default class ColorblindFilters extends Extension {
     enable() {
         const _ = this.gettext.bind(this);
@@ -50,6 +55,9 @@ export default class ColorblindFilters extends Extension {
     }
 }
 
+/**
+ * Listen for changes in preferences and configure shaders appropriately
+ */
 class FilterManager {
     constructor(settings) {
         this.settings = settings;
@@ -105,12 +113,16 @@ class FilterManager {
     }
 }
 
-// Always apply effects to a Clutter.Clone; see discussion in
-// https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
-//
-// EffectTarget tracks exactly what should be cloned and attaches clones as
-// needed. One complication: anything that was touching the magnifier when it is
-// destroyed becomes radioactive and must be decontaminated.
+/**
+ * Tracks where effects should be applied
+ *
+ * Effects always need to be applied to a Clutter.Clone; see discussion in
+ * https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
+ *
+ * This class tracks exactly what should be cloned and attaches clones as
+ * needed. One complication: anything that was touching the magnifier when it is
+ * destroyed becomes radioactive and must be decontaminated.
+ */
 class EffectTarget {
     constructor() {
         // the effect that's currently applied, if any
@@ -214,6 +226,12 @@ function pick_icon(enabled) {
     return `view-${enabled ? 'reveal' : 'conceal'}-symbolic`;
 }
 
+/**
+ * Indicator icon in the Quick Settings area of the panel
+ *
+ * This is required to register anything into the Quick Settings menu, so it may
+ * as well show an icon.
+ */
 class FilterIndicator extends QuickSettings.SystemIndicator {
     static {
         GObject.registerClass(this);
@@ -259,9 +277,9 @@ function get_label_for_filter(filter, _) {
     }
 }
 
-// At one point, I was going to have a toggle to display a slider instead of a
-// toggle, so I made all the menu logic reusable. As it turns out, QuickSlider
-// was not able to do what I wanted, so I decided against it (/diplomatic).
+/**
+ * The actual Quick Settings toggle/menu button
+ */
 class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
     static {
         GObject.registerClass(this);
@@ -298,6 +316,14 @@ class FilterQuickSettingsMenu extends QuickSettings.QuickMenuToggle {
     }
 }
 
+/**
+ * The menu inside the menu button
+ *
+ * I keep wanting to provide other entry points into the menu: panel button,
+ * quick settings slider, etc. And then I actually try to write and/or use them,
+ * and I don't want that anymore. Still, keeping the menu logic separate isn't
+ * the worst decision I've ever made.
+ */
 class FilterConfigMenu {
     constructor(_, settings, menu, with_toggle, with_slider) {
         this.gettext = _;
@@ -511,8 +537,12 @@ class FilterConfigMenu {
 // names that start with "G", it is. Projects with names that start with "G":
 // not even once.
 
-// A big bucket to dunp things that need destroy() into. Giving things names and
-// cleaning them up explicitly is for suckers.
+/**
+ * Explicitly track resources that need to be cleaned up synchronously
+ *
+ * Basically, a big bucket to dump things that need destroy() into. Giving
+ * things names and cleaning them up explicitly is boring.
+ */
 class DestroyAllTheThings {
     constructor() {
         this.objects = [];
@@ -538,7 +568,7 @@ class DestroyAllTheThings {
     }
 
     add_fn(fn) {
-        this.objects.push(new Destructor(fn));
+        this.objects.push({ destroy: fn });
     }
 
     connect(instance, signal, callback) {
@@ -554,7 +584,9 @@ class DestroyAllTheThings {
     }
 }
 
-// Connect to settings change events and disconnect automatically.
+/**
+ * Helper to connect to settings easily and disconnect automatically
+ */
 class SettingsProxy {
     constructor(destroyer, settings) {
         this.destroyer = destroyer;
@@ -582,11 +614,5 @@ class SettingsProxy {
 
     connect(name, type_name, callback) {
         return this._connect_impl(name, type_name, callback, false);
-    }
-}
-
-class Destructor {
-    constructor(dtor) {
-        this.destroy = dtor;
     }
 }

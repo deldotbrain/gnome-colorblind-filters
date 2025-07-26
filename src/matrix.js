@@ -7,9 +7,7 @@
  * @license    0BSD
  */
 
-// There don't seem to be easy matrix methods within reach, so roll our own. I
-// don't feel like writing the whole algorithm to find inverse matrices, so some
-// things that AOSP calculated at runtime are now hardcoded.
+// There don't seem to be easy matrix methods within reach, so roll our own.
 //
 // Convention: all matrices are 3x3 and are stored in a column-major array of 9
 // elements; the value at row R, column C is mat[3*C+R]. All vectors are 1x3 or

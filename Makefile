@@ -36,7 +36,9 @@ zip_generated = \
 		$(BUILD_TMP)/schemas/gschemas.compiled \
 		$(schema_out) \
 		$(locales_mo)
-zip_asis = $(patsubst src/%,$(BUILD_TMP)/%,$(js_files))
+zip_asis = \
+		$(patsubst src/%,$(BUILD_TMP)/%,$(js_files)) \
+		$(wildcard LICENSE*)
 
 # These recipes can be invoked by the user.
 .PHONY: all zip install uninstall clean check_pot

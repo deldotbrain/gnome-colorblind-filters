@@ -1,5 +1,6 @@
 {
-  srcRev,
+  srcRev ? null,
+  version ? "g" + lib.substring 0 7 srcRev,
 
   lib,
   stdenvNoCC,
@@ -17,7 +18,7 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "gnome-shell-extension-colorblind-filters-advanced";
-  version = "g" + lib.substring 0 7 srcRev;
+  inherit version;
   src = ./.;
 
   nativeBuildInputs = [
