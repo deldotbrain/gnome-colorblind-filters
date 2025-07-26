@@ -12,8 +12,6 @@
 // reviewer, I'm well aware that the settings UI is complicated enough to have a
 // dedicated dialog, to which I say: meh.)
 
-// TODO: open a bug with gnome about broken slider destroy
-
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
@@ -356,6 +354,7 @@ class FilterConfigMenu {
             // Warning: destroying this object has a small chance of causing
             // GNOME Shell to crash if the extension is disabled after the
             // screen magnifier has been enabled. Just leak it. I'm not sorry.
+            // https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/8548
             const strength_slider = new Slider(0);
             strength_slider.accessible_name = _('Filter Strength');
             settings.bind('filter-strength', strength_slider, 'value', 0);
