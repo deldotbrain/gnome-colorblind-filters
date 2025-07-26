@@ -126,8 +126,8 @@ function getTransforms(whichCone, factor) {
             M.scale3(1 - factor, M.getRow3(rgb2lms, 0)),
             M.scale3(factor * 0.96, M.getRow3(rgb2lms, 1))),
         () => M.add3(
-            M.scale3(factor, M.getRow3(rgb2lms, 0)),
-            M.scale3((1 - factor) / 0.96, M.getRow3(rgb2lms, 1))),
+            M.scale3(factor / 0.96, M.getRow3(rgb2lms, 0)),
+            M.scale3(1 - factor, M.getRow3(rgb2lms, 1))),
         () => M.scale3(1 - factor, M.getRow3(rgb2lms, 2)),
     ][whichCone]());
 
