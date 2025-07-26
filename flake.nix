@@ -31,9 +31,9 @@
     in
     {
       packages = mkAttr (pkgs: rec {
-        default = gnome-colorblind-filters;
+        default = colorblind-filters-advanced;
 
-        gnome-colorblind-filters = pkgs.callPackage ./package.nix {
+        colorblind-filters-advanced = pkgs.callPackage ./package.nix {
           srcRev = self.rev or self.dirtyRev;
         };
 

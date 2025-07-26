@@ -5,6 +5,7 @@
   lib,
   stdenvNoCC,
 
+  which,
   gettext,
   glib,
   zip,
@@ -13,15 +14,29 @@
   xmlstarlet,
 }:
 let
-  metadata = builtins.fromJSON (builtins.readFile ./metadata.json);
+  metadata = lib.importJSON ./metadata.json;
   inherit (metadata) uuid description;
+  name = lib.head (lib.splitString "@" uuid);
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
-  pname = "gnome-shell-extension-colorblind-filters-advanced";
+  pname = "gnome-shell-extension-${name}";
   inherit version;
-  src = ./.;
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./src
+        ./po
+        ./schemas
+        ./Makefile
+        ./metadata.json
+        (fileFilter ({ name, ... }: lib.hasPrefix "LICENSE" name) ./.)
+      ];
+    };
 
   nativeBuildInputs = [
+    which
     gettext
     glib
     zip

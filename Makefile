@@ -117,7 +117,8 @@ $(foreach t,$(zip_cp_root),$(eval $(BUILD_TMP)/$(notdir $(t)): $(t) $(BUILD_TMP)
 # readily available on the GitHub runners.
 $(ZIP_NAME): $(build_mos) $(zip_generated) $(zip_asis)
 	rm --force $(ZIP_NAME)
-	cd $(BUILD_TMP) && zip "$(abspath $(ZIP_NAME))" $(patsubst $(BUILD_TMP)/%,%,$^)
+	cd $(BUILD_TMP) && zip --must-match "$(abspath $(ZIP_NAME))" \
+		$(patsubst $(BUILD_TMP)/%,%,$(zip_generated) $(zip_asis))
 
 	@#Check if the zip size is too big to be uploaded
 	@SIZE=$$(unzip -Zt $(ZIP_NAME) | awk '{print $$3}') ; \
