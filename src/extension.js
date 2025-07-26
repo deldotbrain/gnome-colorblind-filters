@@ -225,13 +225,12 @@ class FilterIndicator extends QuickSettings.SystemIndicator {
         this.destroyer = new DestroyAllTheThings();
 
         this.indicator = this._addIndicator();
+        this.indicator.icon_name = pick_icon(true);
 
         this.destroyer.settings_proxy(settings).connect_eager(
             'filter-active',
             'boolean',
-            active => { this.indicator.icon_name = pick_icon(active); });
-
-        this.indicator.visible = true;
+            active => { this.indicator.visible = active; });
     }
 
     destroy() {
