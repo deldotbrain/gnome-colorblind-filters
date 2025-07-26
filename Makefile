@@ -31,14 +31,15 @@ build_mos = $(locales_mo)
 check_pot = check_pot
 endif
 
+zip_cp_root = $(js_files) $(wildcard LICENSE*)
+
 zip_generated = \
 		$(BUILD_TMP)/metadata.json \
 		$(BUILD_TMP)/schemas/gschemas.compiled \
 		$(schema_out) \
 		$(locales_mo)
 zip_asis = \
-		$(patsubst src/%,$(BUILD_TMP)/%,$(js_files)) \
-		$(wildcard LICENSE*)
+		$(addprefix $(BUILD_TMP)/,$(notdir $(zip_cp_root)))
 
 # These recipes can be invoked by the user.
 .PHONY: all zip install uninstall clean check_pot
@@ -108,8 +109,8 @@ $(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
 	mkdir -p $(BUILD_TMP)/locale/$*/LC_MESSAGES
 	msgfmt -c -o $@ $<
 
-$(BUILD_TMP)/%.js: src/%.js $(BUILD_TMP)
-	cp $< $@
+# Generate file copy rules
+$(foreach t,$(zip_cp_root),$(eval $(BUILD_TMP)/$(notdir $(t)): $(t) $(BUILD_TMP); cp $$< $$@))
 
 # This bundles the extension and checks whether it is small enough to be uploaded to
 # extensions.gnome.org. We do not use "gnome-extensions pack" for this, as this is not
