@@ -38,8 +38,11 @@ in
     environment.systemPackages = [ thisExtension ];
     programs.dconf.profiles.user.databases = [
       {
-        settings."org/gnome/shell" = {
-          "enabled-extensions" = [ thisExtension.extensionUuid ];
+        settings."org/gnome/shell"."enabled-extensions" = [ thisExtension.extensionUuid ];
+        # And set a nice gay background while we're at it
+        settings."org/gnome/desktop/background" = {
+          "picture-uri" = "file:///run/current-system/sw/share/backgrounds/gnome/progress-l.jxl";
+          "picture-uri-dark" = "file:///run/current-system/sw/share/backgrounds/gnome/progress-d.jxl";
         };
       }
     ];
@@ -77,7 +80,8 @@ in
       # resolution = { x = 1600; y = 900; };
       qemu.options = [
         "-vga none"
-        "-device virtio-gpu-pci"
+        "-device virtio-gpu-gl,hostmem=1G" #,blob=true,venus=true"
+        "-display gtk,gl=on,show-tabs=on,show-cursor=on,window-close=on,zoom-to-fit=on"
       ];
     };
   };
