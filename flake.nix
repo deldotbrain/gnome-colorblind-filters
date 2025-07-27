@@ -46,7 +46,7 @@
           (nixpkgs.lib.nixosSystem {
             inherit (pkgs) system;
             specialArgs.flakeInputs = inputs;
-            modules = [ ./test-vm.nix ];
+            modules = [ ./misc/test-vm.nix ];
           }).config.system.build.vm;
       });
 
