@@ -1,6 +1,6 @@
 /**
  * ColorBlind Filters
- * upstraeam-daltonism.js
+ * upstream-daltonism.js
  *
  * @author     GdH <G-dH@github.com>, A. Pennucci <apennucci@protonmail.com>
  * @copyright  2022-2025
