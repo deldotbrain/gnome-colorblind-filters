@@ -62,7 +62,7 @@
 // RGB-to-opponent transforms. Without conditioning them, simulating a
 // difference in sensitivity would introduce chroma errors to grayscale colors
 // and luma errors on most colors. The specifics of this conditioning are still
-// being worked on, so the best reference is the comments in getRGB2Opp().
+// being worked on, so the best reference is the comments in getTransforms().
 //
 // Valuable reading:
 //
