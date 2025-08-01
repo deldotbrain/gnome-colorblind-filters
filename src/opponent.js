@@ -110,9 +110,9 @@ const lms2opp = useWandell
         0.700,
     ];
 
-const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
-
 function getTransforms(whichCone, factor) {
+    const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
+
     const both = (inputs, fn) => {
         const ret = {};
         for (const i in inputs) {
