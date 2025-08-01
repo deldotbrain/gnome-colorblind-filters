@@ -32,7 +32,11 @@ Should support GNOME Shell 45 - 48, but older versions are not tested.
 
 ### From GNOME Extensions
 
-TBD
+This extension has [a page on GNOME Shell
+Extensions](https://extensions.gnome.org/extension/8382/colorblind-filters-advanced/)!
+You can install it with the browser extension, or by downloading the extension
+and running `gnome-extensions install colorblind-filters-advanced.zip` (or
+whatever the zip file is named).
 
 ### On NixOS
 
@@ -154,7 +158,7 @@ though it still doesn't add up to much actual utilization. At least to the
 developer's eyes, the results are well worth the extra computation. Besides,
 GPUs are awfully fast.
 
-The simulation filter applies a trivial linear transformation (uses the
+The simulation filter applies a trivial linear transformation (using the
 colorblind conversion from RGB to opponent color, then the non-colorblind
 conversion back to RGB). The simulation's accuracy hasn't been validated, but
 it provides valuable insight into how the correction filter understands color
@@ -234,9 +238,9 @@ constant when simulating, changing the appearance of greens considerably.
 
 The "Modified" transform holds the difference between red and green constant,
 balancing the change in their appearance between them. To the developer's eyes,
-this looks less weird, but there is no evidence to say that it's more accurate.
-(Accuracy was never really a consideration for daltonization algorithms to
-begin with.)
+this looks less weird at low strength settings, but there is no evidence to say
+that it's more accurate. At higher strength settings, it distorts skin tones
+(and everything else) in more noticeable ways.
 
 ## Contribution
 Consider contributing to the [original
