@@ -19,8 +19,8 @@ A few effects from the original extension that aren't related to color
 blindness are included as well.
 
 This extension was forked from [the original on
-GitHub](https://github.com/G-dH/gnome-colorblind-filters). This extension has
-more filter options and a different user interface.
+GitHub](https://github.com/G-dH/gnome-colorblind-filters). It has more filter
+options and a different user interface.
 
 ## Screenshot
 
