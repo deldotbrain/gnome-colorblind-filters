@@ -34,7 +34,7 @@
         default = colorblind-filters-advanced;
 
         colorblind-filters-advanced = pkgs.callPackage ./package.nix {
-          srcRev = self.rev or self.dirtyRev;
+          srcRev = self.rev or self.dirtyRev or "unknown";
         };
 
         devEnv = pkgs.buildEnv {
