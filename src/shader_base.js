@@ -1,6 +1,6 @@
 /**
  * ColorBlind Filters
- * opponent.js
+ * shader_base.js
  *
  * @author     A. Pennucci <apennucci@protonmail.com>
  * @copyright  2025
