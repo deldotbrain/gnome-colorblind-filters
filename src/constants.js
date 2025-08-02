@@ -4,7 +4,7 @@
  *
  * @author     A. Pennucci <apennucci@protonmail.com>
  * @copyright  2025
- * @license    GPL-3.0
+ * @license    0BSD
  */
 'use strict';
 
