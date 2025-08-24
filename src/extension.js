@@ -11,6 +11,11 @@
 // FIXME: I'd really prefer that the menu not collapse after every action (yes,
 // reviewer, I'm well aware that the settings UI is complicated enough to have a
 // dedicated dialog, to which I say: meh.)
+//
+// TODO: open a bug with GNOME (if it's not already reported): enabling a screen
+// filter (this extension, upstream, or e.g. the built-in wellbeing grayscale
+// effect) and the screen magnifier, then opening the screen recorder app
+// crashes gnome-shell.
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
@@ -137,9 +142,6 @@ class FilterManager {
  * This class creates that clone and displays it whenever it's needed, i.e. when
  * an effect is enabled but the GNOME screen magnifier is not. The magnifier
  * makes its own clone.
- *
- * FIXME: with filter and magnifier enabled, opening screen recorder crashes gnome
- * (bug is present in extension v1 as well!)
  */
 class ClippingWorkaround {
     constructor() {
