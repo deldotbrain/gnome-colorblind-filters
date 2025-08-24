@@ -114,36 +114,50 @@ class FilterManager {
 /**
  * Tracks where effects should be applied
  *
- * Effects always need to be applied to a Clutter.Clone; see discussion in
- * https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
+ * Effects always need to be applied to a Clutter.Clone instead of uiGroup
+ * directly to avoid glitches with screen recording and multi-monitor; see
+ * discussion in https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
  *
- * This class tracks exactly what should be cloned and attaches clones as
- * needed. One complication: anything that was touching the magnifier when it is
- * destroyed becomes radioactive and must be decontaminated.
+ * This class creates and displays a Clone of uiGroup to attach effects to.
+ * However, because GNOME's screen magnifier takes its content from uiGroup and
+ * not its clone, this class also watches for the magnifier actor to
+ * appear/disappear. When it does, the effect is reattached to uiGroup itself or
+ * the clone, respectively.
+ *
+ * It's not safe to attach the effect to the magnifier actor; when it's
+ * destroyed, it leaves the effect in a weird state where it's not safe to
+ * reuse.
  */
 class EffectTarget {
     constructor() {
         // the effect that's currently applied, if any
         this.current_effect = null;
-        // the clone of current_source, if an effect is enabled
-        this.source_clone = null;
-        // the actor (uiGroup or screen magnifier) that we want to clone, and an
-        // optional connection id that will notify us when it's destroyed
-        this.current_source = { source: Main.uiGroup, destroy_conn: null };
+
+        // clone of uiGroup for cases when another clone (i.e. the screen
+        // magnifier) isn't already being displayed
+        this.ui_clone = new Clutter.Clone({
+            source: Main.uiGroup,
+            clip_to_allocation: true,
+        });
+
+        // Tracks both the magnifier's actor and the connection to its 'destroy'
+        // signal.
+        this.magnifier = null;
 
         // The screen magnifier gets its content directly from uiGroup, not our
         // filtered clone, and displays on top of uiGroup. To filter its
         // content, we need to intentionally attach to it.
         const global_stage = Shell.Global.get().stage;
         this.stage_add_conn = global_stage.connect(
-            'child-added', (_stage, actor) => { this.on_uigroup_attach(actor); });
-        global_stage.get_children().forEach(child => this.on_uigroup_attach(child));
+            'child-added', (_stage, actor) => { this._on_uigroup_attach(actor); });
+        global_stage.get_children().forEach(child => this._on_uigroup_attach(child));
     }
 
     destroy() {
         Shell.Global.get().stage.disconnect(this.stage_add_conn);
         this.set_effect(null);
-        this.set_source(null);
+        this._set_magnifier(null);
+        this.ui_clone.destroy();
     }
 
     set_effect(new_effect) {
@@ -151,72 +165,50 @@ class EffectTarget {
             return;
         }
 
-        const clone = this.ensure_clone();
+        const source = this._get_target_actor();
 
         if (this.current_effect) {
-            clone.remove_effect(this.current_effect);
+            source.remove_effect(this.current_effect);
+        } else if (source === this.ui_clone) {
+            Shell.Global.get().stage.add_child(this.ui_clone);
         }
 
         this.current_effect = new_effect;
 
-        if (new_effect) {
-            clone.add_effect(new_effect);
-        } else {
-            this.destroy_clone();
+        if (this.current_effect) {
+            source.add_effect(this.current_effect);
+        } else if (source === this.ui_clone) {
+            Shell.Global.get().stage.remove_child(this.ui_clone);
         }
     }
 
-    on_uigroup_attach(source) {
+    _get_target_actor() {
+        return this.magnifier?.source ?? this.ui_clone;
+    }
+
+    _set_magnifier(magnifier) {
+        if (this.magnifier) {
+            const m = this.magnifier;
+            m.source.disconnect(m.destroy_conn);
+        }
+
+        const effect = this.current_effect;
+        this.set_effect(null);
+
+        this.magnifier = magnifier;
+
+        this.set_effect(effect);
+    }
+
+    _on_uigroup_attach(source) {
         if (!source.style_class?.split(' ').some(s => s === 'magnifier-zoom-region')) {
             return;
         }
 
         const destroy_conn = source.connect('destroy', () => {
-            // not safe to call .disconnect() on a destroyed object
-            this.current_source.destroy_conn = null;
-
-            this.set_source(Main.uiGroup);
+            this._set_magnifier(null);
         });
-
-        this.set_source(source, destroy_conn);
-    }
-
-    set_source(source, destroy_conn = null) {
-        if (this.current_source.destroy_conn) {
-            this.current_source.source.disconnect(this.current_source.destroy_conn);
-        }
-        this.destroy_clone();
-
-        this.current_source = { source, destroy_conn };
-        if (this.current_effect) {
-            this.ensure_clone().add_effect(this.current_effect);
-        }
-    }
-
-    ensure_clone() {
-        if (!this.source_clone) {
-            this.source_clone = new Clutter.Clone({
-                source: this.current_source.source,
-                clip_to_allocation: true,
-            });
-            Shell.Global.get().stage.add_child(this.source_clone);
-        }
-        return this.source_clone;
-    }
-
-    destroy_clone() {
-        if (this.source_clone) {
-            const clone = this.source_clone;
-            this.source_clone = null;
-
-            if (this.current_effect) {
-                clone.remove_effect(this.current_effect);
-            }
-
-            clone.set_source(null);
-            Shell.Global.get().stage.remove_child(clone);
-            clone.destroy();
-        }
+        this._set_magnifier({ source, destroy_conn });
     }
 }
 
