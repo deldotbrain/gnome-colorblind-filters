@@ -35,7 +35,16 @@ in
     ];
 
     # install and enable this extension
-    environment.systemPackages = [ thisExtension ];
+    environment.systemPackages = [
+      thisExtension
+      (pkgs.makeDesktopItem {
+        name = "gnome-shell-log.desktop";
+        destination = "/etc/xdg/autostart";
+        desktopName = "GNOME Shell Log";
+        exec = "journalctl --user --follow --unit org.gnome.Shell@wayland.service";
+        terminal = true;
+      })
+    ];
     programs.dconf.profiles.user.databases = [
       {
         settings."org/gnome/shell"."enabled-extensions" = [ thisExtension.extensionUuid ];
