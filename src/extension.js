@@ -66,8 +66,10 @@ class FilterManager {
         this.effect_cache = new Map();
         // the user's filter configuration
         this.configured_filter = null;
-        // figures out where to actually attach effects
-        this.effect_target = this.destroyer.construct(EffectTarget);
+        // the currently-applied effect, or null
+        this.current_effect = null;
+        // clone uiGroup when needed to avoid graphical glitches
+        this.clipping_workaround = this.destroyer.construct(ClippingWorkaround);
 
         settings_proxy.connect('filter-active', 'boolean', () => this.update_filter());
         settings_proxy.connect('filter-strength', 'double', () => this.update_filter());
@@ -78,6 +80,10 @@ class FilterManager {
     }
 
     destroy() {
+        if (this.current_effect) {
+            Main.uiGroup.remove_effect(this.current_effect);
+            this.current_effect = null;
+        }
         this.settings = null;
         this.destroyer.destroy();
     }
@@ -92,7 +98,17 @@ class FilterManager {
             effect.updateEffect(configured.properties);
         }
 
-        this.effect_target.set_effect(effect);
+        if (this.current_effect !== effect) {
+            this.clipping_workaround.set_enabled(effect !== null);
+
+            if (this.current_effect) {
+                Main.uiGroup.remove_effect(this.current_effect);
+            }
+            this.current_effect = effect;
+            if (effect) {
+                Main.uiGroup.add_effect(effect);
+            }
+        }
     }
 
     get_effect(filter) {
@@ -112,26 +128,22 @@ class FilterManager {
 }
 
 /**
- * Tracks where effects should be applied
+ * Creates and displays a Clone of uiGroup
  *
- * Effects always need to be applied to a Clutter.Clone instead of uiGroup
- * directly to avoid glitches with screen recording and multi-monitor; see
- * discussion in https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/2269
+ * An unfortunate optimization in Clutter makes screen recording and
+ * multi-monitor very glitchy when effects are applied directly to uiGroup.
+ * Displaying a clone of uiGroup disables that optimization.
  *
- * This class creates and displays a Clone of uiGroup to attach effects to.
- * However, because GNOME's screen magnifier takes its content from uiGroup and
- * not its clone, this class also watches for the magnifier actor to
- * appear/disappear. When it does, the effect is reattached to uiGroup itself or
- * the clone, respectively.
+ * This class creates that clone and displays it whenever it's needed, i.e. when
+ * an effect is enabled but the GNOME screen magnifier is not. The magnifier
+ * makes its own clone.
  *
- * It's not safe to attach the effect to the magnifier actor; when it's
- * destroyed, it leaves the effect in a weird state where it's not safe to
- * reuse.
+ * FIXME: with filter and magnifier enabled, opening screen recorder crashes gnome
+ * (bug is present in extension v1 as well!)
  */
-class EffectTarget {
+class ClippingWorkaround {
     constructor() {
-        // the effect that's currently applied, if any
-        this.current_effect = null;
+        this.enabled = false;
 
         // clone of uiGroup for cases when another clone (i.e. the screen
         // magnifier) isn't already being displayed
@@ -149,66 +161,51 @@ class EffectTarget {
         // content, we need to intentionally attach to it.
         const global_stage = Shell.Global.get().stage;
         this.stage_add_conn = global_stage.connect(
-            'child-added', (_stage, actor) => { this._on_uigroup_attach(actor); });
-        global_stage.get_children().forEach(child => this._on_uigroup_attach(child));
+            'child-added', (_stage, actor) => { this._on_stage_attach(actor); });
+        global_stage.get_children().forEach(child => this._on_stage_attach(child));
     }
 
     destroy() {
         Shell.Global.get().stage.disconnect(this.stage_add_conn);
-        this.set_effect(null);
-        this._set_magnifier(null);
+        if (this.magnifier) {
+            const m = this.magnifier;
+            m.actor.disconnect(m.destroy_conn);
+        }
+        this._update(false, null);
         this.ui_clone.destroy();
     }
 
-    set_effect(new_effect) {
-        if (new_effect === this.current_effect) {
+    set_enabled(enabled) {
+        this._update(enabled, this.magnifier);
+    }
+
+    _update(enabled, magnifier) {
+        if (enabled === this.enabled && magnifier === this.magnifier) {
             return;
         }
 
-        const source = this._get_target_actor();
+        const clone_shown = this.enabled && this.magnifier === null;
+        const show_clone = enabled && magnifier === null;
 
-        if (this.current_effect) {
-            source.remove_effect(this.current_effect);
-        } else if (source === this.ui_clone) {
+        if (show_clone && !clone_shown) {
             Shell.Global.get().stage.add_child(this.ui_clone);
-        }
-
-        this.current_effect = new_effect;
-
-        if (this.current_effect) {
-            source.add_effect(this.current_effect);
-        } else if (source === this.ui_clone) {
+        } else if (!show_clone && clone_shown) {
             Shell.Global.get().stage.remove_child(this.ui_clone);
         }
-    }
 
-    _get_target_actor() {
-        return this.magnifier?.source ?? this.ui_clone;
-    }
-
-    _set_magnifier(magnifier) {
-        if (this.magnifier) {
-            const m = this.magnifier;
-            m.source.disconnect(m.destroy_conn);
-        }
-
-        const effect = this.current_effect;
-        this.set_effect(null);
-
+        this.enabled = enabled;
         this.magnifier = magnifier;
-
-        this.set_effect(effect);
     }
 
-    _on_uigroup_attach(source) {
-        if (!source.style_class?.split(' ').some(s => s === 'magnifier-zoom-region')) {
+    _on_stage_attach(actor) {
+        if (!actor.style_class?.split(' ').some(s => s === 'magnifier-zoom-region')) {
             return;
         }
 
-        const destroy_conn = source.connect('destroy', () => {
-            this._set_magnifier(null);
+        const destroy_conn = actor.connect('destroy', () => {
+            this._update(this.enabled, null);
         });
-        this._set_magnifier({ source, destroy_conn });
+        this._update(this.enabled, { actor, destroy_conn });
     }
 }
 
