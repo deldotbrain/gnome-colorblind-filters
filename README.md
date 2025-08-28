@@ -22,9 +22,32 @@ This extension was forked from [the original on
 GitHub](https://github.com/G-dH/gnome-colorblind-filters). It has more filter
 options and a different user interface.
 
-## Screenshot
+## Screenshots
 
-![Colorblind Filters Advanced menu](colorblind-filters-advanced.png)
+### Quick Settings Menu
+
+![This extension's quick settings menu](./misc/images/quick-settings.webp)
+
+### Filter Algorithm Samples
+
+In all images, the filter strength was set to 50%, except for the Daltonize
+algorithm, where it was set to 35%. The original image was [created by
+Pixabay](https://www.pexels.com/photo/assorted-color-pencil-set-459799/).
+
+#### Protanopia
+
+![A photo of colored pencils with horizontal bands filtered with different
+protanopia correction algorithms](./misc/images/prot-comparison.webp)
+
+#### Deuteranopia
+
+![A photo of colored pencils with horizontal bands filtered with different
+deuteranopia correction algorithms](./misc/images/deut-comparison.webp)
+
+#### Tritanopia
+
+![A photo of colored pencils with horizontal bands filtered with different
+tritanopia correction algorithms](./misc/images/trit-comparison.webp)
 
 ## Installation
 
