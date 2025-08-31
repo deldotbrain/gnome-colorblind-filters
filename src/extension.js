@@ -11,11 +11,6 @@
 // FIXME: I'd really prefer that the menu not collapse after every action (yes,
 // reviewer, I'm well aware that the settings UI is complicated enough to have a
 // dedicated dialog, to which I say: meh.)
-//
-// TODO: open a bug with GNOME (if it's not already reported): enabling a screen
-// filter (this extension, upstream, or e.g. the built-in wellbeing grayscale
-// effect) and the screen magnifier, then opening the screen recorder app
-// crashes gnome-shell.
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
