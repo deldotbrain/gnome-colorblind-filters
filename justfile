@@ -1,36 +1,57 @@
 # vim:sw=4 ts=4 sts=4 et
 
+# suffix for names of extension, build directory, and zip file
 suffix := 'dev'
+
+# for debug and test targets
+display := ':1'
+resolution := '1920x1080'
+monitors := '1'
+
+# not customizable; needs to agree with makefile
 package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
 
-zip: (make 'all') (make 'zip')
-
-clean: (make 'clean')
-
-make *target:
+# Invoke make, passing a value for $SUFFIX
+_make *target:
     make SUFFIX={{suffix}} {{target}}
 
+# Run a nested GNOME compositor with a clean environment
+_run_gnome mode launcher: install
+    systemd-run --user --{{mode}} \
+        --setenv MUTTER_DEBUG_NUM_DUMMY_MONITORS={{monitors}} \
+        --setenv MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
+        dbus-run-session -- {{launcher}} gnome-shell --nested --wayland --display={{display}}
+
+# 'all' runs checks that 'zip' doesn't
+[doc('Package the extension into a zip file')]
+zip: (_make 'all') (_make 'zip')
+
+# Clean up the build directory
+clean: (_make 'clean')
+
+# Install or update the extension
 install: zip
     gnome-extensions install --force {{package}}.zip
 
+# Uninstall the extension
 uninstall:
     gnome-extensions uninstall {{package}}
 
-test display=":1" resolution="1280x720": install
-    MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
-    dbus-run-session -- gnome-shell --nested --wayland --display={{display}}
-
+# tries to avoid downloading a whole fresh system by using the host nixpkgs
+[doc('Run a NixOS virtual machine with the extension enabled')]
 test-vm:
-    # try to avoid downloading a whole fresh system by using the host nixpkgs
     nix run --override-input nixpkgs nixpkgs '.#testVm'
 
-test-multimon monitors="2" display=":2" resolution="1280x720": install
-    MUTTER_DEBUG_NUM_DUMMY_MONITORS={{monitors}} \
-    MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
-    dbus-run-session -- gnome-shell --nested --wayland --display={{display}}
+# Update the extension and run a nested GNOME compositor
+test: (_run_gnome 'pipe' '')
 
+# Update the extension and run a nested GNOME compositor inside gdb
+debug: (_run_gnome 'pty' (shell('which gdb') + ' --args'))
+
+# Run eslint on everything in src/
 lint:
     npx eslint --config ./misc/lint/eslint.config.mjs src/*.js
 
+# Install eslint and its dependencies
 install-eslint:
     npm install -D eslint @eslint/js
