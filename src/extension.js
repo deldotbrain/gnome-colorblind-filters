@@ -143,8 +143,8 @@ class EffectTarget {
         // content, we need to intentionally attach to it.
         const global_stage = Shell.Global.get().stage;
         this.stage_add_conn = global_stage.connect(
-            'child-added', (_stage, actor) => { this._on_uigroup_attach(actor); });
-        global_stage.get_children().forEach(child => this._on_uigroup_attach(child));
+            'child-added', (_stage, actor) => { this._on_stage_attach(actor); });
+        global_stage.get_children().forEach(child => this._on_stage_attach(child));
     }
 
     destroy() {
@@ -194,7 +194,7 @@ class EffectTarget {
         this.set_effect(effect);
     }
 
-    _on_uigroup_attach(source) {
+    _on_stage_attach(source) {
         if (!source.style_class?.split(' ').some(s => s === 'magnifier-zoom-region')) {
             return;
         }
