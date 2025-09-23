@@ -35,7 +35,6 @@ zip_cp_root = $(js_files) $(wildcard LICENSE*)
 
 zip_generated = \
 		$(BUILD_TMP)/metadata.json \
-		$(BUILD_TMP)/schemas/gschemas.compiled \
 		$(schema_out) \
 		$(locales_mo)
 zip_asis = \
@@ -100,10 +99,6 @@ $(schema_out): $(schema_in)
 	else \
 		cp $< $@; \
 	fi
-
-# Compiles the gschemas.compiled file from the gschema.xml file.
-$(BUILD_TMP)/schemas/gschemas.compiled: $(schema_out)
-	glib-compile-schemas $(BUILD_TMP)/schemas
 
 $(BUILD_TMP)/locale/%/LC_MESSAGES/$(NAME).mo: po/%.po
 	mkdir -p $(BUILD_TMP)/locale/$*/LC_MESSAGES

@@ -59,8 +59,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/share/gnome-shell/extensions/${uuid}
-    unzip ${uuid}.zip -d $out/share/gnome-shell/extensions/${uuid}
+    dest=$out/share/gnome-shell/extensions/${uuid}
+    mkdir -p $dest
+    unzip ${uuid}.zip -d $dest
+
+    glib-compile-schemas $dest/schemas
 
     runHook postInstall
   '';
