@@ -40,7 +40,7 @@ Pixabay](https://www.pexels.com/photo/assorted-color-pencil-set-459799/).
 
 ## Installation
 
-Should support GNOME Shell 45 - 48, but older versions are not tested.
+Should support GNOME Shell 45 - 49, but older versions are not tested.
 
 ### From GNOME Extensions
 
