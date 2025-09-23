@@ -15,7 +15,9 @@ package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
 _make *target:
     make SUFFIX={{suffix}} {{target}}
 
-# Run a nested GNOME compositor with a clean environment
+# Apparently, on GNOME 49+, this should be "dbus-run-session -- gnome-shell
+# --devkit" instead.
+[doc('Run a nested GNOME compositor with a clean environment')]
 _run_gnome mode launcher: install
     systemd-run --user --{{mode}} \
         --setenv MUTTER_DEBUG_NUM_DUMMY_MONITORS={{monitors}} \
@@ -41,6 +43,12 @@ uninstall:
 [doc('Run a NixOS virtual machine with the extension enabled')]
 test-vm:
     nix run --override-input nixpkgs nixpkgs '.#testVm'
+
+# Some of the builds require huge amounts of memory, so don't run too many at
+# once.
+[doc('Run a NixOS virtual machine with GNOME 49 and the extension')]
+test-vm-49:
+    nix run --max-jobs 2 '.#testVmGnome49'
 
 # Update the extension and run a nested GNOME compositor
 test: (_run_gnome 'pipe' '')

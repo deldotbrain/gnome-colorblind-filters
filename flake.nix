@@ -1,6 +1,9 @@
 {
+  # nixpkgs' WIP GNOME 49 branch
+  inputs.nixpkgs-gnome.url = "github:nixos/nixpkgs/wip-gnome";
+
   outputs =
-    { nixpkgs, self }@inputs:
+    { nixpkgs, nixpkgs-gnome, self }@inputs:
     let
       inherit (nixpkgs) lib;
 
@@ -27,10 +30,17 @@
           xmlstarlet
         ];
 
-      mkAttr = fn: lib.genAttrs lib.systems.flakeExposed (sys: fn nixpkgs.legacyPackages.${sys});
+      mkAttr = fn: lib.genAttrs lib.systems.flakeExposed (sys: fn sys nixpkgs.legacyPackages.${sys});
+
+      mkTestVm = nixpkgsFlake: system:
+          (nixpkgsFlake.lib.nixosSystem {
+            inherit system;
+            specialArgs.flakeInputs = inputs;
+            modules = [ ./misc/test-vm.nix ];
+          }).config.system.build.vm;
     in
     {
-      packages = mkAttr (pkgs: rec {
+      packages = mkAttr (system: pkgs: rec {
         default = colorblind-filters-advanced;
 
         colorblind-filters-advanced = pkgs.callPackage ./package.nix {
@@ -42,15 +52,12 @@
           paths = devDeps pkgs;
         };
 
-        testVm =
-          (nixpkgs.lib.nixosSystem {
-            inherit (pkgs) system;
-            specialArgs.flakeInputs = inputs;
-            modules = [ ./misc/test-vm.nix ];
-          }).config.system.build.vm;
+        testVm = mkTestVm nixpkgs system;
+
+        testVmGnome49 = mkTestVm nixpkgs-gnome system;
       });
 
-      devShells = mkAttr (pkgs: {
+      devShells = mkAttr (_: pkgs: {
         default = pkgs.mkShell {
           name = "gnome-colorblind-filters-shell";
           packages = devDeps pkgs;
