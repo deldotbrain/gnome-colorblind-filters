@@ -4,6 +4,7 @@
 suffix := 'dev'
 
 # for debug and test targets
+lang := '' # e.g. it_IT.UTF-8
 display := ':1'
 resolution := '1920x1080'
 monitors := '1'
@@ -22,6 +23,7 @@ _run_gnome mode launcher: install
     systemd-run --user --{{mode}} \
         --setenv MUTTER_DEBUG_NUM_DUMMY_MONITORS={{monitors}} \
         --setenv MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
+        {{if lang != '' { '--setenv LANG=' + lang } else { '' } }} \
         dbus-run-session -- {{launcher}} gnome-shell --nested --wayland --display={{display}}
 
 # 'all' runs checks that 'zip' doesn't
