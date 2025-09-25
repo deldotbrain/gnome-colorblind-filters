@@ -1,6 +1,7 @@
 # vim:sw=4 ts=4 sts=4 et
 
-# suffix for names of extension, build directory, and zip file
+# suffix for names of extension, build directory, and zip file. For release
+# builds, "just suffix= zip", etc. are appropriate.
 suffix := 'dev'
 
 # for debug and test targets
@@ -9,9 +10,6 @@ display := ':1'
 resolution := '1920x1080'
 monitors := '1'
 
-# not customizable; needs to agree with makefile
-package := 'colorblind-filters-advanced-' + suffix + '@amyp.codeberg.org'
-
 # Invoke make, passing a value for $SUFFIX
 _make *target:
     make SUFFIX={{suffix}} {{target}}
@@ -19,7 +17,7 @@ _make *target:
 # Apparently, on GNOME 49+, this should be "dbus-run-session -- gnome-shell
 # --devkit" instead.
 [doc('Run a nested GNOME compositor with a clean environment')]
-_run_gnome mode launcher: install
+_run_gnome mode launcher:
     systemd-run --user --{{mode}} \
         --setenv MUTTER_DEBUG_NUM_DUMMY_MONITORS={{monitors}} \
         --setenv MUTTER_DEBUG_DUMMY_MODE_SPECS={{resolution}} \
@@ -34,12 +32,10 @@ zip: (_make 'all') (_make 'zip')
 clean: (_make 'clean')
 
 # Install or update the extension
-install: zip
-    gnome-extensions install --force {{package}}.zip
+install: (_make 'install')
 
 # Uninstall the extension
-uninstall:
-    gnome-extensions uninstall {{package}}
+uninstall: (_make 'uninstall')
 
 # tries to avoid downloading a whole fresh system by using the host nixpkgs
 [doc('Run a NixOS virtual machine with the extension enabled')]
@@ -53,10 +49,10 @@ test-vm-49:
     nix run --max-jobs 2 '.#testVmGnome49'
 
 # Update the extension and run a nested GNOME compositor
-test: (_run_gnome 'pipe' '')
+test: install (_run_gnome 'pipe' '')
 
 # Update the extension and run a nested GNOME compositor inside gdb
-debug: (_run_gnome 'pty' (shell('which gdb') + ' --args'))
+debug: install (_run_gnome 'pty' (shell('which gdb') + ' --args'))
 
 # Run eslint on everything in src/
 lint:
