@@ -133,6 +133,7 @@ class EffectTarget {
             source: Main.uiGroup,
             clip_to_allocation: true,
         });
+        Shell.util_set_hidden_from_pick(this.ui_clone, true);
 
         // Tracks both the magnifier's actor and the connection to its 'destroy'
         // signal.
