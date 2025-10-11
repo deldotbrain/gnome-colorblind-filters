@@ -157,9 +157,8 @@ accepted.
 ## Donations
 The developer doesn't need or want donations for their work. If you find it
 valuable, please consider donating to an organization that provides direct
-support to their queer siblings. For example, [Pride Center of
-Vermont](https://www.pridecentervt.org/), [Trevor
-Project](https://www.thetrevorproject.org/), and [Rainbow
+support to their queer siblings. For example, your local trans mutual aid
+group, [Trevor Project](https://www.thetrevorproject.org/), and [Rainbow
 Railroad](https://www.rainbowrailroad.org/) always need support. Alternatively,
 feel free to [buy the author of the original extension a
 coffee](https://buymeacoffee.com/georgdh). His extension inspired the developer
