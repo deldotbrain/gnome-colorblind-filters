@@ -160,7 +160,7 @@ class EffectTarget {
             return;
         }
 
-        const source = this._get_target_actor();
+        const source = this.magnifier?.source ?? this.ui_clone;
 
         if (this.current_effect) {
             source.remove_effect(this.current_effect);
@@ -175,10 +175,6 @@ class EffectTarget {
         } else if (source === this.ui_clone) {
             Shell.Global.get().stage.remove_child(this.ui_clone);
         }
-    }
-
-    _get_target_actor() {
-        return this.magnifier?.source ?? this.ui_clone;
     }
 
     _set_magnifier(magnifier) {
