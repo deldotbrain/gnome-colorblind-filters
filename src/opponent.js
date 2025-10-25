@@ -30,33 +30,17 @@
 // Reversing the transformation to correct for color blindness would widen the
 // gamut and require colors that our displays can't produce!
 //
-// To build a correction filter that doesn't just saturate colors, it's
-// necessary to correct the appearance of each color (i.e. try to match its
-// position in opponent color space) while also limiting the change in RGB value
-// that the filter is allowed to make (i.e. try to match its position in RGB
-// space). Finding an optimial solution is now an optimization problem that can
-// be handled with ordinary techniques.
+// This filter takes a slightly different approach by searching for a new color
+// which minimizes (the square of) the distance in opponent color space between
+// the intended appearance of the original color and the simulated appearance of
+// the new color. Gradient descent is used to search near the original color for
+// the new color value.
 //
-// To do so, we define a cost function as the sum of the square of the distance
-// in opponent color space and the square of the distance in RGB space (the math
-// is simpler this way). Different components are weighted differently, with RGB
-// distance having a low (but non-zero) weight and the luminance component in
-// opponent space having a high weight because luma errors are much more visible
-// than chroma. Starting at the original RGB value, we use a few iterations of
-// gradient descent to find a local minimum in the cost function. To decide the
-// step size, the derivative of the cost function along the gradient is solved
-// for zero. Deriving the various equations is excruciatingly boring, mechanical
-// calculus that won't be repeated here.
-//
-// c(r,g,b) = W_r*(r_c - R_0)^2
-//          + W_g*(g_c - G_0)^2
-//          + W_b*(b_c - B_0)^2
-//          + W_v*(v_c - V_i)^2
-//          + W_yb*(yb_c - YB_i)^2
-//          + W_rg*(rg_c - RG_i)^2
-//
-// There's probably a really clever way to minimize that function analytically,
-// but I don't know it and GPU cycles are pretty cheap.
+// Something strange happens that the developer doesn't (yet) understand:
+// instead of finding the global minimum distance (the "reverse simulation"
+// approach yields this), it finds a local minimum near the original color. As
+// part of a larger effort to improve this filter, they are working on
+// understanding why that is.
 //
 // Most of the actual magic of this filter is in the conditioning of the
 // RGB-to-opponent transforms. Without conditioning them, simulating a
@@ -186,7 +170,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 rgb2sim: 'mat3',
                 rgb2const: 'mat3',
                 rgb2var: 'mat3',
-                rgb_weights: 'vec3',
                 opp_weights: 'vec3',
             },
             `
@@ -203,30 +186,21 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     // pick a step size by solving the derivative of cost wrt
                     // step size for zero.
                     vec3 sim_grad = rgb2sim * grad;
-                    float num =
-                        dot(rgb_weights, (rgb - orig_rgb) * grad) +
-                        dot(opp_weights, (rgb2sim * rgb - opp_ideal) * sim_grad);
-                    float den =
-                        dot(rgb_weights, grad * grad) +
-                        dot(opp_weights, sim_grad * sim_grad);
 
-                    // gradient descent
+                    float den = dot(opp_weights, sim_grad * sim_grad);
                     if (den == 0) {
                         break;
                     }
-                    float step = num / den;
-                    rgb -= step * grad;
+
+                    float num = dot(opp_weights, (rgb2sim * rgb - opp_ideal) * sim_grad);
+                    rgb -= (num / den) * grad;
                 }
             `);
     }
 
     updateEffect(properties) {
         // Cost of the opponent-space errors; first component is luma
-        const opp_weights = [250, 50, 50];
-        // Cost of adjustment away from original RGB value. Has little
-        // effect for low factor, but avoids solutions far outside of the
-        // RGB gamut for high factors.
-        const rgb_weights = [1, 1, 1];
+        const opp_weights = [5, 1, 1];
 
         const { whichCone, factor } = properties;
         const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
@@ -239,30 +213,25 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
             // As a minor optimization, the constant half of the partial
             // derivatives in the gradient are calculated only once.
             rgb2const: M.scale3(-2,
-                M.add3x3(
-                    M.diagonal(rgb_weights),
+                M.mult3x3(
+                    M.transpose(rgb2sim),
                     M.mult3x3(
-                        M.transpose(rgb2sim),
-                        M.mult3x3(
-                            M.diagonal(opp_weights),
-                            rgb2ideal)))),
+                        M.diagonal(opp_weights),
+                        rgb2ideal))),
 
             // The variable half still needs to be calculated for every
             // iteration.
             rgb2var: M.scale3(2,
-                M.add3x3(
-                    M.diagonal(rgb_weights),
+                M.mult3x3(
+                    M.transpose(rgb2sim),
                     M.mult3x3(
-                        M.transpose(rgb2sim),
-                        M.mult3x3(
-                            M.diagonal(opp_weights),
-                            rgb2sim)))),
+                        M.diagonal(opp_weights),
+                        rgb2sim))),
 
             // The shader needs a lot of information about the cost function to
             // solve its derivative for zero when deciding on a step size.
             rgb2ideal,
             rgb2sim,
-            rgb_weights,
             opp_weights,
         });
     }

@@ -16,12 +16,10 @@ Typically, color blindness correction filters describe a way of converting a
 color into a different color in the hope that it will look "better", for some
 definition of "better". Instead, this filter searches for a color that will
 stimulate a colorblind viewer's brain the same way the original color would
-have stimulated a trichromat's brain, but also tries not to change the RGB
-values of the color by too much. Making the filter dynamically balance those
-goals causes it to make changes it wouldn't otherwise: when correcting for
-tritanomaly, it lightens bright blues to make them more visible instead of just
-cranking up the blue value; when correcting for prot/deuteranomaly, it adds
-some blue to reds to help distinguish them; etc.
+have stimulated a trichromat's brain. Searching this way can yield surprising
+results: when correcting for tritanomaly, it lightens bright blues to make them
+more visible instead of just cranking up the blue value; when correcting for
+prot/deuteranomaly, it adds some blue to reds to help distinguish them; etc.
 
 Searching for a color this way does require more resources than the simple
 linear transformations that other filters use (probably by a factor of 20-30),
