@@ -124,21 +124,21 @@ function getTransforms(whichCone, factor) {
             r2o);
     });
 
-    // Align "neutral" chroma values with a small offset proportional to luma.
-    // Otherwise, a chroma error appears on grays due to the different
-    // sensitivity, causing an unwanted correction.
-    const row_offset = row_num => {
-        const ideal_white = M.dot3(M.getRow3(scaled.ideal, row_num), [1, 1, 1]);
-        const sim_white = M.dot3(M.getRow3(scaled.sim, row_num), [1, 1, 1]);
-        return sim_white - ideal_white;
+    // Align chroma values so that gray colors have zero chroma components by
+    // adding a small offset proportional to luma. This prevents a chroma error
+    // from appearing on grays due to the different sensitivity, avoiding
+    // spurious "correction".
+    const row_offset = (r2o, component) => {
+        const row = M.getRow3(r2o, component);
+        const error = M.dot3(row, [1, 1, 1]);
+        return M.sub3(row, M.scale3(error, M.getRow3(r2o, 0)));
     };
-    const correct_offset = M.sub3x3(
-        M.identity3x3(),
-        M.gen3x3((r, c) => c === 0 && r !== 0 ? row_offset(r) : 0));
-    return {
-        ideal: scaled.ideal,
-        sim: M.mult3x3(correct_offset, scaled.sim),
-    };
+    return both(scaled, s =>
+        M.fromRows(
+            M.getRow3(s, 0),
+            row_offset(s, 1),
+            row_offset(s, 2)
+        ));
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {
