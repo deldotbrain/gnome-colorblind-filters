@@ -102,7 +102,9 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: false,
-        usesHighContrast: [],
+        usesHighContrast: [
+            ColorBlindnessType.TRITAN,
+        ],
     },
     GDH: {
         name: _ => _('GdH\'s Filters'),

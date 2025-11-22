@@ -78,7 +78,7 @@ const lms2opp = [
     0.93,
 ];
 
-function getTransforms(whichCone, factor) {
+function getTransforms(whichCone, factor, highContrast) {
     const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
 
     const both = (inputs, fn) => {
@@ -133,12 +133,49 @@ function getTransforms(whichCone, factor) {
         const error = M.dot3(row, [1, 1, 1]);
         return M.sub3(row, M.scale3(error, M.getRow3(r2o, 0)));
     };
-    return both(scaled, s =>
+    const zero_aligned = both(scaled, s =>
         M.fromRows(
             M.getRow3(s, 0),
             row_offset(s, 1),
             row_offset(s, 2)
         ));
+
+    // Prevent saturation (esp. for blue when correcting for tritanopia) by
+    // adding a quadratic correction to the target chroma values: yb_target = k
+    // * yb^2 + yb. This function has a slope of 1 and value of 0 at yb = 0, and
+    // k is chosen such that the value at yb = 1 is the maximum perceived value
+    // that RGB colors can produce.
+
+    // Compute minimum and maximum possible chroma components for RGB colors
+    const component_range = (r2o, component) =>
+        M.getRow3(r2o, component).reduce((r, i) => {
+            r[i > 0 ? 1 : 0] += i;
+            return r;
+        }, [0, 0]);
+    // Compute the quadratic coefficient for a function that limits [0, ideal]
+    // to [0, sim].
+    const coeff = (ideal, sim) => {
+        const r = Math.sign(ideal) * Math.max(
+            // The ideal coefficient
+            Math.sign(ideal) * (sim - ideal) / (ideal * ideal),
+            // Limit the coefficient to keep the resulting function monotonic,
+            // even if that means allowing saturation
+            -0.5 / Math.abs(ideal)
+        );
+        return r;
+    };
+
+    // Generate four coefficients for the quadratic correcting factor: negative
+    // RG, positive RG, likewise for YB. In "high contrast" mode, don't even try
+    // to reduce saturation.
+    zero_aligned.quad_coeffs = highContrast
+        ? [0, 0, 0, 0]
+        : [1, 2].flatMap(component => {
+            const ranges = both(zero_aligned, r2o => component_range(r2o, component));
+            return [0, 1].map(i => coeff(ranges.ideal[i], ranges.sim[i]));
+        });
+
+    return zero_aligned;
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {
@@ -147,6 +184,11 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
     }
 
     _init() {
+        // TODO: explore turning this into a 3D texture op instead. Previously,
+        // this wasn't a clear win since memory bandwidth was generally the
+        // limiting factor, but as this shader gets more complex, it might
+        // actually be an improvement. A 32x32x32xGL_RGB8UI comfortably fits
+        // into basically any iGPU's dcache.
         super._init(
             'linear',
             {
@@ -155,6 +197,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 rgb2const: 'mat3',
                 rgb2var: 'mat3',
                 opp_weights: 'vec3',
+                quad_coeffs: 'vec4',
             },
             `
                 const int step_count = 5;
@@ -162,6 +205,12 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 vec3 orig_rgb = rgb;
                 vec3 opp_ideal = rgb2ideal * rgb;
                 vec3 grad_const = rgb2const * rgb;
+
+                vec2 qcs = vec2(
+                    opp_ideal.y >= 0.0 ? quad_coeffs.x : quad_coeffs.y,
+                    opp_ideal.z >= 0.0 ? quad_coeffs.z : quad_coeffs.w
+                );
+                opp_ideal.yz += qcs * opp_ideal.yz * opp_ideal.yz;
 
                 for (int i = 0; i < step_count; i++) {
                     // evaluate gradient at current rgb coordinates
@@ -186,8 +235,9 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         // Cost of the opponent-space errors; first component is luma
         const opp_weights = [5, 1, 1];
 
-        const { whichCone, factor } = properties;
-        const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
+        const { whichCone, factor, highContrast } = properties;
+        const { ideal: rgb2ideal, sim: rgb2sim, quad_coeffs } =
+            getTransforms(whichCone, factor, highContrast);
 
         this.set_uniforms({
             // The derivative of the cost function splits nicely in half, with
@@ -217,6 +267,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
             rgb2ideal,
             rgb2sim,
             opp_weights,
+            quad_coeffs,
         });
     }
 }
