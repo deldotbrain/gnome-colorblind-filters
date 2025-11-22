@@ -67,6 +67,7 @@ const uniform_types = Object.fromEntries([
     ['int', 1],
     ['float', 1],
     ['vec3', 3],
+    ['vec4', 4],
     ['mat3', 9],
 ].map(([t, s]) => [t, new UniformDim(t, s)]));
 
