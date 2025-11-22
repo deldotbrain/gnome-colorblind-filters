@@ -63,36 +63,20 @@ import { ColorblindFilter } from './shader_base.js';
 import * as M from './matrix.js';
 import { srgb_to_d65_xyz, hpe_d65_xyz_to_lms } from './constants.js';
 
-// Which LMS-to-Opponent transform to use; doesn't seem to make much difference
-const useWandell = true;
-
 // Convert L, M, S into V, R-G, Y-B (green, blue positive)
-const lms2opp = useWandell
-    // From Wandell, who very deliberately says that this is just one data
-    // point, not an absolute, general truth. We'll use it that way anyway.
-    ? [
-        1.00,
-        -0.59,
-        -0.34,
-        0.00,
-        0.80,
-        -0.11,
-        0.00,
-        -0.12,
-        0.93,
-    ]
-    // Machado et al. cite Ingling and Tsou with a different transform:
-    : [
-        0.600,
-        -1.200,
-        -0.240,
-        0.400,
-        1.600,
-        -0.105,
-        0.000,
-        -0.400,
-        0.700,
-    ];
+// From Wandell, who very deliberately says that this is just one data
+// point, not an absolute, general truth. We'll use it that way anyway.
+const lms2opp = [
+    1.00,
+    -0.59,
+    -0.34,
+    0.00,
+    0.80,
+    -0.11,
+    0.00,
+    -0.12,
+    0.93,
+];
 
 function getTransforms(whichCone, factor) {
     const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
