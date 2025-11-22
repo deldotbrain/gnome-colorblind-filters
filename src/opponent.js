@@ -111,19 +111,6 @@ function getTransforms(whichCone, factor, highContrast) {
     const row_sum = (mat, row_num, elem_map = x => x) =>
         M.getRow3(mat, row_num).reduce((a, v) => a + elem_map(v), 0);
 
-    // Scale rows so that each opponent component has a range of 1, sort of.
-    // Normalizing the simulated luma row avoids an erroneous correction for
-    // unchanged luma, but re-using the chroma normalization for typical cones
-    // properly simulates the loss of contrast and encourages an aggressive
-    // correction. At least for tritan, that means dark blues and light yellows
-    // are more vibrant, which I like.
-    const scaled = both(rgb2opp, r2o => {
-        const ref = M.setRow3(rgb2opp.ideal, 0, M.getRow3(r2o, 0));
-        return M.mult3x3(
-            M.diagonal(M.gen3(i => 1 / row_sum(ref, i, Math.abs))),
-            r2o);
-    });
-
     // Align chroma values so that gray colors have zero chroma components by
     // adding a small offset proportional to luma. This prevents a chroma error
     // from appearing on grays due to the different sensitivity, avoiding
@@ -131,14 +118,27 @@ function getTransforms(whichCone, factor, highContrast) {
     const row_offset = (r2o, component) => {
         const row = M.getRow3(r2o, component);
         const error = M.dot3(row, [1, 1, 1]);
-        return M.sub3(row, M.scale3(error, M.getRow3(r2o, 0)));
+        return M.sub3(row, M.scale3(error / row_sum(rgb2opp.ideal, 0, Math.abs), M.getRow3(r2o, 0)));
     };
-    const zero_aligned = both(scaled, s =>
+    const zero_aligned = both(rgb2opp, s =>
         M.fromRows(
             M.getRow3(s, 0),
             row_offset(s, 1),
             row_offset(s, 2)
         ));
+
+    // Scale rows so that each opponent component has a range of 1, sort of.
+    // Normalizing the simulated luma row avoids an erroneous correction for
+    // unchanged luma, but re-using the chroma normalization for typical cones
+    // properly simulates the loss of contrast and encourages an aggressive
+    // correction. At least for tritan, that means dark blues and light yellows
+    // are more vibrant, which I like.
+    const scaled = both(zero_aligned, r2o => {
+        const ref = M.setRow3(zero_aligned.ideal, 0, M.getRow3(r2o, 0));
+        return M.mult3x3(
+            M.diagonal(M.gen3(i => 1 / row_sum(ref, i, Math.abs))),
+            r2o);
+    });
 
     // Prevent saturation (esp. for blue when correcting for tritanopia) by
     // adding a quadratic correction to the target chroma values: yb_target = k
@@ -168,14 +168,14 @@ function getTransforms(whichCone, factor, highContrast) {
     // Generate four coefficients for the quadratic correcting factor: negative
     // RG, positive RG, likewise for YB. In "high contrast" mode, don't even try
     // to reduce saturation.
-    zero_aligned.quad_coeffs = highContrast
+    scaled.quad_coeffs = highContrast
         ? [0, 0, 0, 0]
         : [1, 2].flatMap(component => {
-            const ranges = both(zero_aligned, r2o => component_range(r2o, component));
+            const ranges = both(scaled, r2o => component_range(r2o, component));
             return [0, 1].map(i => coeff(ranges.ideal[i], ranges.sim[i]));
         });
 
-    return zero_aligned;
+    return scaled;
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {
