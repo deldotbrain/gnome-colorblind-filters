@@ -36,6 +36,12 @@
 // the new color. Gradient descent is used to search near the original color for
 // the new color value.
 //
+// To avoid choosing colors that RGB cannot represent, the target chromaticity
+// is limited for colors that colorblindness affects. That limit is applied
+// gradually to keep color gradients natural-looking. Specifically, a simple
+// quadratic function ("c_out(c_in) = -k * c_in^2 + c_in") is used to gradually
+// reduce higher values; k is chosen so the function remains monotonic.
+//
 // Something strange happens that the developer doesn't (yet) understand:
 // instead of finding the global minimum distance (the "reverse simulation"
 // approach yields this), it finds a local minimum near the original color. As
@@ -78,7 +84,7 @@ const lms2opp = [
     0.93,
 ];
 
-function getTransforms(whichCone, factor, highContrast) {
+function getTransforms(whichCone, factor) {
     const rgb2lms = M.mult3x3(hpe_d65_xyz_to_lms, srgb_to_d65_xyz);
 
     const both = (inputs, fn) => {
@@ -141,41 +147,6 @@ function getTransforms(whichCone, factor, highContrast) {
         normalize_row(mat, 1, zero_aligned.ideal),
         normalize_row(mat, 2, zero_aligned.ideal)));
 
-    // Prevent saturation (esp. for blue when correcting for tritanopia) by
-    // adding a quadratic correction to the target chroma values: yb_target = k
-    // * yb^2 + yb. This function has a slope of 1 and value of 0 at yb = 0, and
-    // k is chosen such that the value at yb = 1 is the maximum perceived value
-    // that RGB colors can produce.
-
-    // Compute minimum and maximum possible chroma components for RGB colors
-    const component_range = (r2o, component) =>
-        M.getRow3(r2o, component).reduce((r, i) => {
-            r[i > 0 ? 1 : 0] += i;
-            return r;
-        }, [0, 0]);
-    // Compute the quadratic coefficient for a function that limits [0, ideal]
-    // to [0, sim].
-    const coeff = (ideal, sim) => {
-        const r = Math.sign(ideal) * Math.max(
-            // The ideal coefficient
-            Math.sign(ideal) * (sim - ideal) / (ideal * ideal),
-            // Limit the coefficient to keep the resulting function monotonic,
-            // even if that means allowing saturation
-            -0.5 / Math.abs(ideal)
-        );
-        return r;
-    };
-
-    // Generate four coefficients for the quadratic correcting factor: negative
-    // RG, positive RG, likewise for YB. In "high contrast" mode, don't even try
-    // to reduce saturation.
-    scaled.quad_coeffs = highContrast
-        ? [0, 0, 0, 0]
-        : [1, 2].flatMap(component => {
-            const ranges = both(scaled, r2o => component_range(r2o, component));
-            return [0, 1].map(i => coeff(ranges.ideal[i], ranges.sim[i]));
-        });
-
     return scaled;
 }
 
@@ -198,7 +169,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 rgb2const: 'mat3',
                 rgb2var: 'mat3',
                 opp_weights: 'vec3',
-                quad_coeffs: 'vec4',
             },
             `
                 const int step_count = 5;
@@ -207,11 +177,48 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 vec3 opp_ideal = rgb2ideal * rgb;
                 vec3 grad_const = rgb2const * rgb;
 
-                vec2 qcs = vec2(
-                    opp_ideal.y >= 0.0 ? quad_coeffs.x : quad_coeffs.y,
-                    opp_ideal.z >= 0.0 ? quad_coeffs.z : quad_coeffs.w
-                );
-                opp_ideal.yz += qcs * opp_ideal.yz * opp_ideal.yz;
+                // Reduce the target chroma to a level we can actually display.
+                // It's not obvious, but this reduces RG and YB towards gray as
+                // "c -= k * c * c;". k is chosen so the maximum chroma that RGB
+                // can represent for this RG/YB ratio is reduced to the maximum
+                // representable perceived chroma. However, k must also be
+                // limited to ensure that the target chroma monotonically
+                // increases as source chroma increases.
+
+                // Determining the actual maximum chroma is hard. Instead, scale
+                // rgb to saturate one component and assume that results in the
+                // maximum value. It's probably close enough.
+                float max_scale = max(rgb.r, max(rgb.g, rgb.b));
+                if (max_scale > 0) {
+                    vec3 max_rgb = rgb / max_scale;
+
+                    vec2 ideal_opp = (rgb2ideal * max_rgb).yz;
+                    float max_chroma_i = length(ideal_opp);
+
+                    // This is inexact. Ideally, we'd use
+                    //   rgb2sim * ((rgb2sim^-1 * rgb2opp * rgb) / max_scale)
+                    // to determine the exact limits, but that seems excessive.
+                    vec2 sim_opp = (rgb2sim * max_rgb).yz;
+                    vec2 ideal_sign = sign(ideal_opp);
+                    // Guard against the possiblity that a component's sign
+                    // differs between ideal and simulated chroma; clamp to 0 in
+                    // that case.
+                    float max_chroma_s = length(ideal_sign * max(ideal_sign * sim_opp, 0));
+
+                    float k = max(
+                        // Ideal coefficient
+                        (max_chroma_i - max_chroma_s) / (max_chroma_i * max_chroma_i),
+                        // Required for monotonicity
+                        -0.5 / max_chroma_i);
+                    float chroma_s = length((rgb2ideal * rgb).yz);
+                    opp_ideal.yz *= 1 - k * chroma_s;
+                }
+
+                // Find an RGB value that will be perceived similarly to the
+                // target color (opp_ideal) using gradient descent to minimize
+                // the norm of the distance in opponent color space between the
+                // target color and the simulated perception of the new RGB
+                // value.
 
                 for (int i = 0; i < step_count; i++) {
                     // evaluate gradient at current rgb coordinates
@@ -236,9 +243,8 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         // Cost of the opponent-space errors; first component is luma
         const opp_weights = [5, 1, 1];
 
-        const { whichCone, factor, highContrast } = properties;
-        const { ideal: rgb2ideal, sim: rgb2sim, quad_coeffs } =
-            getTransforms(whichCone, factor, highContrast);
+        const { whichCone, factor } = properties;
+        const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
         this.set_uniforms({
             // The derivative of the cost function splits nicely in half, with
@@ -268,7 +274,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
             rgb2ideal,
             rgb2sim,
             opp_weights,
-            quad_coeffs,
         });
     }
 }
