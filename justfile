@@ -1,5 +1,9 @@
 # vim:sw=4 ts=4 sts=4 et
 
+# List the available targets by default
+@_default:
+	just --list
+
 # suffix for names of extension, build directory, and zip file. For release
 # builds, "just suffix= zip", etc. are appropriate.
 suffix := 'dev'
