@@ -110,35 +110,36 @@ function getTransforms(whichCone, factor) {
 
     const row_sum = (mat, row_num, elem_map = x => x) =>
         M.getRow3(mat, row_num).reduce((a, v) => a + elem_map(v), 0);
+    const normalize_row = (mat, row_num, ref = mat) =>
+        M.scale3(1 / row_sum(ref, row_num, Math.abs), M.getRow3(mat, row_num));
 
-    // Scale rows so that each opponent component has a range of 1, sort of.
-    // Normalizing the simulated luma row avoids an erroneous correction for
-    // unchanged luma, but re-using the chroma normalization for typical cones
-    // properly simulates the loss of contrast and encourages an aggressive
-    // correction. At least for tritan, that means dark blues and light yellows
-    // are more vibrant, which I like.
-    const scaled = both(rgb2opp, r2o => {
-        const ref = M.setRow3(rgb2opp.ideal, 0, M.getRow3(r2o, 0));
-        return M.mult3x3(
-            M.diagonal(M.gen3(i => 1 / row_sum(ref, i, Math.abs))),
-            r2o);
-    });
+    // Scale luma so that #ffffff has ideal and simulated luma of 1. This avoids
+    // spurious corrections of grayscale.
+    const luma_norm = both(rgb2opp, mat => M.setRow3(mat, 0, normalize_row(mat, 0)));
 
-    // Align "neutral" chroma values with a small offset proportional to luma.
-    // Otherwise, a chroma error appears on grays due to the different
-    // sensitivity, causing an unwanted correction.
-    const row_offset = row_num => {
-        const ideal_white = M.dot3(M.getRow3(scaled.ideal, row_num), [1, 1, 1]);
-        const sim_white = M.dot3(M.getRow3(scaled.sim, row_num), [1, 1, 1]);
-        return sim_white - ideal_white;
+    // Align chroma values so that gray colors have zero chroma components by
+    // adding a small offset proportional to luma. This prevents a chroma error
+    // from appearing on grays due to the different sensitivity, avoiding
+    // spurious "correction".
+    const chroma_offset = (mat, component) => {
+        const row = M.getRow3(mat, component);
+        const error = M.dot3(row, [1, 1, 1]);
+        return M.sub3(row, M.scale3(error, M.getRow3(mat, 0)));
     };
-    const correct_offset = M.sub3x3(
-        M.identity3x3(),
-        M.gen3x3((r, c) => c === 0 && r !== 0 ? row_offset(r) : 0));
-    return {
-        ideal: scaled.ideal,
-        sim: M.mult3x3(correct_offset, scaled.sim),
-    };
+    const zero_aligned = both(luma_norm, s =>
+        M.fromRows(
+            M.getRow3(s, 0),
+            chroma_offset(s, 1),
+            chroma_offset(s, 2)
+        ));
+
+    // Scale rows so that the ideal chroma components have a range of 1. Apply
+    // the same scaling to the simulated components to simulate the reduction in
+    // color sensitivity.
+    return both(zero_aligned, mat => M.fromRows(
+        M.getRow3(mat, 0),
+        normalize_row(mat, 1, zero_aligned.ideal),
+        normalize_row(mat, 2, zero_aligned.ideal)));
 }
 
 export class OpponentCorrectionEffect extends ColorblindFilter {
