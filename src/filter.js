@@ -102,7 +102,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: false,
-        usesHighContrast: false,
+        usesHighContrast: [],
     },
     GDH: {
         name: _ => _('GdH\'s Filters'),
@@ -114,7 +114,10 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: false,
-        usesHighContrast: true,
+        usesHighContrast: [
+            ColorBlindnessType.PROTAN,
+            ColorBlindnessType.DEUTAN,
+        ],
     },
     ES: {
         name: _ => _('Error Steering'),
@@ -128,7 +131,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
-        usesHighContrast: false,
+        usesHighContrast: [],
     },
     HPE: {
         name: _ => _('Daltonize'),
@@ -142,7 +145,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
-        usesHighContrast: false,
+        usesHighContrast: [],
     },
     AOSP: {
         name: _ => _('Android'),
@@ -156,7 +159,7 @@ export const ColorBlindnessAlgorithm = {
         },
         usesFactor: true,
         usesTritanHack: true,
-        usesHighContrast: false,
+        usesHighContrast: [],
     },
 };
 
@@ -193,9 +196,8 @@ export function tritan_hack_allowed(mode, algorithm, color_blindness_type) {
 }
 
 export function high_contrast_allowed(mode, algorithm, color_blindness_type) {
-    return mode === FilterMode.CORRECTION && algorithm?.usesHighContrast &&
-        (color_blindness_type === ColorBlindnessType.PROTAN ||
-            color_blindness_type === ColorBlindnessType.DEUTAN);
+    return mode === FilterMode.CORRECTION &&
+        algorithm?.usesHighContrast?.includes(color_blindness_type);
 }
 
 function getProperties(kind) {
