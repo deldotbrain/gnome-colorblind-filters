@@ -36,6 +36,12 @@
 // the new color. Gradient descent is used to search near the original color for
 // the new color value.
 //
+// To avoid choosing colors that RGB cannot represent, the target chromaticity
+// is limited for colors that colorblindness affects. That limit is applied
+// gradually to keep color gradients natural-looking. Specifically, a simple
+// quadratic function ("c_out(c_in) = -k * c_in^2 + c_in") is used to gradually
+// reduce higher values; k is chosen so the function remains monotonic.
+//
 // Something strange happens that the developer doesn't (yet) understand:
 // instead of finding the global minimum distance (the "reverse simulation"
 // approach yields this), it finds a local minimum near the original color. As
@@ -148,6 +154,11 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
     }
 
     _init() {
+        // TODO: explore turning this into a 3D texture op instead. Previously,
+        // this wasn't a clear win since memory bandwidth was generally the
+        // limiting factor, but as this shader gets more complex, it might
+        // actually be an improvement. A 32x32x32xGL_RGB8UI comfortably fits
+        // into basically any iGPU's dcache.
         super._init(
             'linear',
             {
@@ -163,6 +174,49 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 vec3 orig_rgb = rgb;
                 vec3 opp_ideal = rgb2ideal * rgb;
                 vec3 grad_const = rgb2const * rgb;
+
+                // Reduce the target chroma to a level we can actually display.
+                // It's not obvious, but this reduces RG and YB towards gray as
+                // "c -= k * c * c;". k is chosen so the maximum chroma that RGB
+                // can represent for this RG/YB ratio is reduced to the maximum
+                // representable perceived chroma. However, k must also be
+                // limited to ensure that the target chroma monotonically
+                // increases as source chroma increases.
+
+                // Determining the actual maximum chroma is hard. Instead, scale
+                // rgb to saturate one component and assume that results in the
+                // maximum value. It's probably close enough.
+                float max_scale = max(rgb.r, max(rgb.g, rgb.b));
+                if (max_scale > 0) {
+                    vec3 max_rgb = rgb / max_scale;
+
+                    vec2 ideal_opp = (rgb2ideal * max_rgb).yz;
+                    float max_chroma_i = length(ideal_opp);
+
+                    // This is inexact. Ideally, we'd use
+                    //   rgb2sim * ((rgb2sim^-1 * rgb2opp * rgb) / max_scale)
+                    // to determine the exact limits, but that seems excessive.
+                    vec2 sim_opp = (rgb2sim * max_rgb).yz;
+                    vec2 ideal_sign = sign(ideal_opp);
+                    // Guard against the possiblity that a component's sign
+                    // differs between ideal and simulated chroma; clamp to 0 in
+                    // that case.
+                    float max_chroma_s = length(ideal_sign * max(ideal_sign * sim_opp, 0));
+
+                    float k = max(
+                        // Ideal coefficient
+                        (max_chroma_i - max_chroma_s) / (max_chroma_i * max_chroma_i),
+                        // Required for monotonicity
+                        -0.5 / max_chroma_i);
+                    float chroma_s = length((rgb2ideal * rgb).yz);
+                    opp_ideal.yz *= 1 - k * chroma_s;
+                }
+
+                // Find an RGB value that will be perceived similarly to the
+                // target color (opp_ideal) using gradient descent to minimize
+                // the norm of the distance in opponent color space between the
+                // target color and the simulated perception of the new RGB
+                // value.
 
                 for (int i = 0; i < step_count; i++) {
                     // evaluate gradient at current rgb coordinates
