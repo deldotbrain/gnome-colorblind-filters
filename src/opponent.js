@@ -164,8 +164,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
             {
                 rgb2ideal: 'mat3',
                 rgb2sim: 'mat3',
-                rgb2const: 'mat3',
-                rgb2var: 'mat3',
                 opp_weights: 'vec3',
             },
             `
@@ -210,10 +208,10 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 // target color and the simulated perception of the new RGB
                 // value.
 
-                vec3 grad_const = rgb2const * rgb;
                 for (int i = 0; i < step_count; i++) {
                     // evaluate gradient at current rgb coordinates
-                    vec3 grad = rgb2var * rgb + grad_const;
+                    vec3 grad = transpose(rgb2sim) *
+                        (opp_weights * (rgb2sim * rgb - opp_ideal));
 
                     // pick a step size by solving the derivative of cost wrt
                     // step size for zero.
@@ -238,30 +236,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
         const { ideal: rgb2ideal, sim: rgb2sim } = getTransforms(whichCone, factor);
 
         this.set_uniforms({
-            // The derivative of the cost function splits nicely in half, with
-            // one half based on the initial RGB value and the other on the
-            // corrected value.
-            //
-            // As a minor optimization, the constant half of the partial
-            // derivatives in the gradient are calculated only once.
-            rgb2const: M.scale3(-2,
-                M.mult3x3(
-                    M.transpose(rgb2sim),
-                    M.mult3x3(
-                        M.diagonal(opp_weights),
-                        rgb2ideal))),
-
-            // The variable half still needs to be calculated for every
-            // iteration.
-            rgb2var: M.scale3(2,
-                M.mult3x3(
-                    M.transpose(rgb2sim),
-                    M.mult3x3(
-                        M.diagonal(opp_weights),
-                        rgb2sim))),
-
-            // The shader needs a lot of information about the cost function to
-            // solve its derivative for zero when deciding on a step size.
             rgb2ideal,
             rgb2sim,
             opp_weights,
