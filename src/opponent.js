@@ -203,13 +203,12 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     // that case.
                     float max_chroma_s = length(ideal_sign * max(ideal_sign * sim_opp, 0));
 
-                    float k = max(
+                    float k = min(
                         // Ideal coefficient
                         (max_chroma_i - max_chroma_s) / (max_chroma_i * max_chroma_i),
                         // Required for monotonicity
-                        -0.5 / max_chroma_i);
-                    float chroma_s = length((rgb2ideal * rgb).yz);
-                    opp_ideal.yz *= 1 - k * chroma_s;
+                        0.5 / max_chroma_i);
+                    opp_ideal.yz *= 1 - k * length(opp_ideal.yz);
                 }
 
                 // Find an RGB value that will be perceived similarly to the
