@@ -171,9 +171,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
             `
                 const int step_count = 5;
 
-                vec3 orig_rgb = rgb;
                 vec3 opp_ideal = rgb2ideal * rgb;
-                vec3 grad_const = rgb2const * rgb;
 
                 // Reduce the target chroma to a level we can actually display.
                 // It's not obvious, but this reduces RG and YB towards gray as
@@ -183,26 +181,21 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 // limited to ensure that the target chroma monotonically
                 // increases as source chroma increases.
 
-                // Determining the actual maximum chroma is hard. Instead, scale
-                // rgb to saturate one component and assume that results in the
-                // maximum value. It's probably close enough.
-                float max_scale = max(rgb.r, max(rgb.g, rgb.b));
-                if (max_scale > 0) {
-                    vec3 max_rgb = rgb / max_scale;
+                // Determine the maximum chroma values of this chroma 2-vector
+                // for ideal and simulated transforms.
+                vec2 chroma_norm = normalize(opp_ideal.yz);
+                float max_chroma_i =
+                    max(0, dot(chroma_norm, rgb2ideal[0].yz)) +
+                    max(0, dot(chroma_norm, rgb2ideal[1].yz)) +
+                    max(0, dot(chroma_norm, rgb2ideal[2].yz));
 
-                    vec2 ideal_opp = (rgb2ideal * max_rgb).yz;
-                    float max_chroma_i = length(ideal_opp);
+                if (max_chroma_i > 0) {
+                    float max_chroma_s =
+                        max(0, dot(chroma_norm, rgb2sim[0].yz)) +
+                        max(0, dot(chroma_norm, rgb2sim[1].yz)) +
+                        max(0, dot(chroma_norm, rgb2sim[2].yz));
 
-                    // This is inexact. Ideally, we'd use
-                    //   rgb2sim * ((rgb2sim^-1 * rgb2opp * rgb) / max_scale)
-                    // to determine the exact limits, but that seems excessive.
-                    vec2 sim_opp = (rgb2sim * max_rgb).yz;
-                    vec2 ideal_sign = sign(ideal_opp);
-                    // Guard against the possiblity that a component's sign
-                    // differs between ideal and simulated chroma; clamp to 0 in
-                    // that case.
-                    float max_chroma_s = length(ideal_sign * max(ideal_sign * sim_opp, 0));
-
+                    // Pick a coefficient and scale down the target chroma vector
                     float k = min(
                         // Ideal coefficient
                         (max_chroma_i - max_chroma_s) / (max_chroma_i * max_chroma_i),
@@ -217,6 +210,7 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                 // target color and the simulated perception of the new RGB
                 // value.
 
+                vec3 grad_const = rgb2const * rgb;
                 for (int i = 0; i < step_count; i++) {
                     // evaluate gradient at current rgb coordinates
                     vec3 grad = rgb2var * rgb + grad_const;
