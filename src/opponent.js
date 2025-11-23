@@ -37,7 +37,7 @@
 // the new color value.
 //
 // To avoid choosing colors that RGB cannot represent, the target chromaticity
-// is limited for colors that colorblindness affects. That limit is applied
+// is limited for colors that color blindness affects. That limit is applied
 // gradually to keep color gradients natural-looking. Specifically, a simple
 // quadratic function ("c_out(c_in) = -k * c_in^2 + c_in") is used to gradually
 // reduce higher values; k is chosen so the function remains monotonic.
