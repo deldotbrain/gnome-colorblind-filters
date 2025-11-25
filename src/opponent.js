@@ -107,12 +107,7 @@ function getTransforms(whichCone, factor) {
     ][whichCone]());
 
     const r2l = { ideal: rgb2lms, sim: sim_rgb2lms };
-
-    // Use L+M+S for luminance. With factor = 0, rgb2lms is normalized so that
-    // this is equivalent to R+G+B, but this allows the simulated change in
-    // sensitivity to be applied to luminance as well.
-    const mod_lms2opp = M.setRow3(lms2opp, 0, [1, 1, 1]);
-    const rgb2opp = both(r2l, mat => M.mult3x3(mod_lms2opp, mat));
+    const rgb2opp = both(r2l, mat => M.mult3x3(lms2opp, mat));
 
     const row_sum = (mat, row_num, elem_map = x => x) =>
         M.getRow3(mat, row_num).reduce((a, v) => a + elem_map(v), 0);
