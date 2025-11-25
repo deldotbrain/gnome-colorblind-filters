@@ -163,12 +163,12 @@ export const ColorBlindnessAlgorithm = {
 export const TritanHackEnable = {
     DISABLE: {
         name: _ => _('Typical Transform'),
-        cfgString: 'modified',
+        cfgString: 'typical',
         properties: { tritanHack: false },
     },
     ENABLE: {
         name: _ => _('Modified Transform'),
-        cfgString: 'typical',
+        cfgString: 'modified',
         properties: { tritanHack: true },
     },
 };
