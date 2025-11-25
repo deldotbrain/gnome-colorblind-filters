@@ -43,6 +43,7 @@ for t in protanopia deuteranopia tritanopia; do
 	for f in ocs gdh hpe; do
 		if [ "$f" = "hpe" ]; then s=0.35; else s=0.5; fi
 		if [ "$f" = "gdh" ] && [ "$t" != "tritanopia" ]; then suff="-normal"; else suff=; fi
+		if [ "$f" = "hpe" ] && [ "$t" = "tritanopia" ]; then suff="-typical"; fi
 
 		opt filter-strength "$s"
 		opt filter-name "\"correction-$f-$t$suff\""
