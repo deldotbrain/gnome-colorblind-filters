@@ -166,14 +166,6 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
 
                 vec3 opp_ideal = rgb2ideal * rgb;
 
-                // Reduce the target chroma to a level we can actually display.
-                // It's not obvious, but this reduces RG and YB towards gray as
-                // "c -= k * c * c;". k is chosen so the maximum chroma that RGB
-                // can represent for this RG/YB ratio is reduced to the maximum
-                // representable perceived chroma. However, k must also be
-                // limited to ensure that the target chroma monotonically
-                // increases as source chroma increases.
-
                 // Determine the maximum chroma values of this chroma 2-vector
                 // for ideal and simulated transforms.
                 vec2 chroma_norm = normalize(opp_ideal.yz);
@@ -181,20 +173,24 @@ export class OpponentCorrectionEffect extends ColorblindFilter {
                     max(0, dot(chroma_norm, rgb2ideal[0].yz)) +
                     max(0, dot(chroma_norm, rgb2ideal[1].yz)) +
                     max(0, dot(chroma_norm, rgb2ideal[2].yz));
+                float max_chroma_s =
+                    max(0, dot(chroma_norm, rgb2sim[0].yz)) +
+                    max(0, dot(chroma_norm, rgb2sim[1].yz)) +
+                    max(0, dot(chroma_norm, rgb2sim[2].yz));
 
-                if (max_chroma_i > 0) {
-                    float max_chroma_s =
-                        max(0, dot(chroma_norm, rgb2sim[0].yz)) +
-                        max(0, dot(chroma_norm, rgb2sim[1].yz)) +
-                        max(0, dot(chroma_norm, rgb2sim[2].yz));
-
-                    // Pick a coefficient and scale down the target chroma vector
-                    float k = min(
-                        // Ideal coefficient
-                        (max_chroma_i - max_chroma_s) / (max_chroma_i * max_chroma_i),
-                        // Required for monotonicity
-                        0.5 / max_chroma_i);
-                    opp_ideal.yz *= 1 - k * length(opp_ideal.yz);
+                // Reduce the target chroma to a level we can actually display.
+                // It's not obvious, but this reduces RG and YB towards gray as
+                // (assuming chroma is normalized to [0, 1]):
+                //   alpha = pow(chroma, -sim_max_chroma / (sim_max_chroma - 1))
+                //   chroma = mix(chroma, sim_max_chroma * chroma, alpha);
+                // In other words, a gradual (nonlinear) transition from the
+                // original chroma near zero to linearly reduced chroma near
+                // full chroma.
+                if (max_chroma_s < max_chroma_i) {
+                    float k = max_chroma_s / (max_chroma_i - max_chroma_s);
+                    opp_ideal.yz *= 1 +
+                        (max_chroma_s / max_chroma_i - 1) *
+                        pow(length(opp_ideal.yz), k);
                 }
 
                 // Find an RGB value that will be perceived similarly to the
