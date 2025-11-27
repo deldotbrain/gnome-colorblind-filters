@@ -28,6 +28,10 @@
           gnumake
           jq
           xmlstarlet
+
+          # filter comparison screenshots
+          feh
+          imagemagick
         ];
 
       mkAttr = fn: lib.genAttrs lib.systems.flakeExposed (sys: fn sys nixpkgs.legacyPackages.${sys});
