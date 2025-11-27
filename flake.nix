@@ -32,6 +32,7 @@
           # filter comparison screenshots
           feh
           imagemagick
+          gnome-screenshot
         ];
 
       mkAttr = fn: lib.genAttrs lib.systems.flakeExposed (sys: fn sys nixpkgs.legacyPackages.${sys});

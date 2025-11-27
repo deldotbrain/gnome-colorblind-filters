@@ -2,23 +2,12 @@
 
 SUFFIX="${1:+-$1}"
 
-# TODO It's necessary to put the shell in unsafe mode first. Detect and warn
-# about this?
-#
-# To put the shell in unsafe mode, use an extension, or:
-# Alt+F2, type "lg" and hit enter
-# enter "global.context.unsafe_mode = true" and hit enter
-# and then run the script. Probably turn unsafe mode back to false afterwards.
-
 opt() {
 	dconf write /org/gnome/shell/extensions/colorblind-filters-advanced"$SUFFIX"/"$1" "$2"
 }
 
 snap() {
-	dbus-send --session --type=method_call --print-reply --dest=org.gnome.Shell.Screenshot \
-		/org/gnome/Shell/Screenshot org.gnome.Shell.Screenshot.Screenshot \
-		boolean:false boolean:false \
-		string:"$PWD/$1"
+	gnome-screenshot --file="$PWD/$1"
 }
 
 # Open in fullscreen. A screenshot of just a borderless window would be ideal
