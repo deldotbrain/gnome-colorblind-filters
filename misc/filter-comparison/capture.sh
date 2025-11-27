@@ -1,5 +1,7 @@
 #!/bin/sh -x
 
+SUFFIX="${1:+-$1}"
+
 # TODO It's necessary to put the shell in unsafe mode first. Detect and warn
 # about this?
 #
@@ -9,7 +11,7 @@
 # and then run the script. Probably turn unsafe mode back to false afterwards.
 
 opt() {
-	dconf write /org/gnome/shell/extensions/colorblind-filters-advanced/"$1" "$2"
+	dconf write /org/gnome/shell/extensions/colorblind-filters-advanced"$SUFFIX"/"$1" "$2"
 }
 
 snap() {
@@ -31,7 +33,7 @@ feh=$!
 # No idea how long it takes for feh to appear
 sleep 0.5
 
-old_settings="$(dconf dump /org/gnome/shell/extensions/colorblind-filters-advanced/)"
+old_settings="$(dconf dump /org/gnome/shell/extensions/colorblind-filters-advanced"$SUFFIX"/)"
 
 opt filter-active false
 sleep 0.1
@@ -57,4 +59,4 @@ done
 kill $feh
 
 # Politely restore the settings we scribbled over
-echo "$old_settings" | dconf load /org/gnome/shell/extensions/colorblind-filters-advanced/
+echo "$old_settings" | dconf load /org/gnome/shell/extensions/colorblind-filters-advanced"$SUFFIX"/
